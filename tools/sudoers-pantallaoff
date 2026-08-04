@@ -1,0 +1,21 @@
+# PantallaOff — regla opcional de sudo para el último recurso.
+#
+# Permite ejecutar EXACTAMENTE este comando sin contraseña:
+#     sudo -n /usr/bin/killall -HUP WindowServer
+# que reinicia la sesión gráfica (logout en ~10 s, sin reboot). Es la única
+# vía medida que recupera el panel interno cuando el sistema se queda con
+# 0 pantallas y el enable falla en el hotplug.
+#
+# Sin esta regla, `rescue --last-resort` pedirá contraseña — imposible de
+# teclear con fiabilidad a ciegas; por SSH sí es viable.
+#
+# INSTALACIÓN (la haces tú, requiere tu contraseña):
+#     sed -i '' "s/TU_USUARIO/$(id -un)/" tools/sudoers-pantallaoff
+#     sudo visudo -cf tools/sudoers-pantallaoff   # valida la sintaxis
+#     sudo cp tools/sudoers-pantallaoff /etc/sudoers.d/pantallaoff
+#     sudo chmod 440 /etc/sudoers.d/pantallaoff
+#
+# Alcance deliberadamente mínimo: sólo killall con señal -HUP y sólo sobre
+# WindowServer. Nada más.
+
+TU_USUARIO ALL=(root) NOPASSWD: /usr/bin/killall -HUP WindowServer
