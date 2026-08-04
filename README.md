@@ -319,12 +319,39 @@ extendido** antes de la Fase 1.
 
 ---
 
+## Mantener el Mac despierto
+
+Un interruptor en el menú, equivalente al modo básico de Amphetamine y nada más: sin
+temporizadores, sin activación por app, sin disparadores.
+
+| Opción | Equivale a | Qué hace |
+|---|---|---|
+| **Mantener el Mac despierto** | `caffeinate -i` | El sistema no se duerme por inactividad. La pantalla sí puede apagarse. |
+| **…y la pantalla encendida** | `caffeinate -d` | Además mantiene la pantalla encendida. Gasta más batería. |
+
+Usa `IOPMAssertionCreateWithName`, API **pública** de gestión de energía — la misma que hay
+debajo de `caffeinate`. Esta parte del proyecto no necesita ningún truco. Puedes verificarlo
+mientras esté activo:
+
+```bash
+pmset -g assertions | grep PantallaOff
+```
+
+**No impide el reposo al cerrar la tapa**, y es deliberado por partida doble: macOS lo fuerza
+al margen de cualquier assertion, y en este proyecto cerrar la tapa es además tu vía fiable
+para recuperar la pantalla interna (capa 5c).
+
+Las assertions se sueltan al salir de la app, así que nunca queda el Mac insomne por un
+proceso olvidado.
+
 ## Estructura
 
 ```
 src/PantallaCore.{h,c}    núcleo compartido: predicado, mutación, estado, rescate
 src/Bridge.h              expone el núcleo a Swift
-src/DisplayControl.swift  watchdog, dead-man, log, estado observable
+src/DisplayControl.swift  watchdog, vigía IOKit, dead-man, log, estado observable
+src/KeepAwake.swift       mantener despierto (IOPMAssertion, API pública)
+src/LoginItem.swift       arranque al iniciar sesión (SMAppService)
 src/AppDelegate.swift     NSStatusItem y menú
 src/main.swift            entrada (.accessory)
 tools/probe.c             sonda de SOLO LECTURA

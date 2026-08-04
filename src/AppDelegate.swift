@@ -29,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Las assertions de energía mueren con el proceso, pero soltarlas
+        // explícitamente evita dejar una entrada fantasma en `pmset -g assertions`.
+        KeepAwake.set(enabled: false, includeDisplay: false)
+
         // Con kCGConfigureForAppOnly el sistema ya revierte al terminar, pero no
         // se depende de eso: encender explícitamente es barato e idempotente.
         if !control.disabledByUs().isEmpty {
@@ -73,7 +77,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.image = nil
             button.title = state == .offByUs ? "◻︎" : "◼︎"
         }
-        button.toolTip = describe(state)
+        var tip = describe(state)
+        if KeepAwake.isOn {
+            tip += KeepAwake.keepsDisplayOn
+                ? "\nDespierto, con la pantalla encendida"
+                : "\nManteniendo el Mac despierto"
+        }
+        button.toolTip = tip
     }
 
     private func describe(_ state: BuiltInState) -> String {
@@ -117,6 +127,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 menu.addItem(item("Romper el espejo (la interna es la fuente)",
                                   #selector(breakMirror), enabled: true))
             }
+        }
+
+        menu.addItem(.separator())
+
+        // Mantener despierto: un interruptor y su matiz, nada más.
+        let awake = item("Mantener el Mac despierto", #selector(toggleKeepAwake), enabled: true)
+        awake.state = KeepAwake.isOn ? .on : .off
+        menu.addItem(awake)
+        if KeepAwake.isOn {
+            let disp = item("      …y la pantalla encendida",
+                            #selector(toggleKeepDisplay), enabled: true)
+            disp.state = KeepAwake.keepsDisplayOn ? .on : .off
+            menu.addItem(disp)
         }
 
         menu.addItem(.separator())
@@ -183,6 +206,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self?.refresh()
         }
+    }
+
+    @objc private func toggleKeepAwake() {
+        let turningOn = !KeepAwake.isOn
+        if let problem = KeepAwake.set(enabled: turningOn,
+                                       includeDisplay: KeepAwake.keepsDisplayOn) {
+            alert("Mantener despierto", problem)
+        } else {
+            control.write("mantener despierto: \(turningOn ? "activado" : "desactivado")")
+        }
+        refresh()
+    }
+
+    @objc private func toggleKeepDisplay() {
+        let turningOn = !KeepAwake.keepsDisplayOn
+        if let problem = KeepAwake.adjustDisplay(turningOn) {
+            alert("Mantener la pantalla encendida", problem)
+        } else {
+            control.write("mantener pantalla encendida: \(turningOn ? "activado" : "desactivado")")
+        }
+        refresh()
     }
 
     @objc private func toggleLoginItem() {
