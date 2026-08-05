@@ -30,9 +30,7 @@ you were running a single display. Windows stop wandering there. One click bring
 │  ☑ Mantener el Mac despierto         │
 │      …y la pantalla encendida        │
 │  ──────────────────────────────────  │
-│  Reactivar todas las pantallas       │
 │  ☑ Abrir al iniciar sesión           │
-│  Abrir el registro                   │
 │  ──────────────────────────────────  │
 │  Salir de PantallaOff                │
 └──────────────────────────────────────┘
@@ -86,6 +84,11 @@ Click **Apagar pantalla del MacBook**. That's it.
 The item is greyed out with a reason when it wouldn't be safe — no usable external display,
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
+
+**Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal *Open the log*
+and *Force re-enable all displays*. Neither is needed in normal use — the app only ever turns
+off one screen, so "re-enable all" does the same thing as the regular toggle. They're there
+for when something goes wrong.
 
 **One caveat about mirroring.** If your built-in is the *source* of a mirror set, turning it
 off would leave the whole set without a source, so the app refuses and offers to break the
@@ -206,7 +209,7 @@ blind. It does nothing at all when there's nothing to rescue.
 | `~/rescue --restore` | Forces a full display-configuration restore. |
 | `~/rescue --last-resort` | Restarts the graphics session (logout, not reboot). |
 
-The app logs everything to `~/Library/Logs/PantallaOff.log` — while a display is off it
+The app logs everything to `~/Library/Logs/PantallaOff.log` (⌥ + menu → *Open the log*) — while a display is off it
 records every change plus a heartbeat every 30 seconds, so silence is never a possible result.
 
 ---

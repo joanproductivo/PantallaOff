@@ -143,7 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
-        menu.addItem(item("Reactivar todas las pantallas", #selector(turnOn), enabled: true))
 
         // Arranque al iniciar sesión. Seguro porque la app nunca apaga nada
         // por su cuenta (P1): arrancar sola sólo pone el icono en la barra.
@@ -162,7 +161,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(item("Abrir al iniciar sesión — \(why)", #selector(quit), enabled: false))
         }
 
-        menu.addItem(item("Abrir el registro", #selector(openLog), enabled: true))
+        // Diagnóstico: sólo con ⌥ pulsada al abrir el menú.
+        //
+        // Ninguna de estas dos cosas hace falta en el uso normal. "Forzar
+        // reactivación" ejecuta la misma acción que "Encender pantalla del
+        // MacBook" —la app sólo apaga una pantalla— y sólo se distingue cuando
+        // el estado quedó inconsistente, p. ej. tras un selftest interrumpido.
+        // El registro sólo interesa cuando algo va mal.
+        if NSEvent.modifierFlags.contains(.option) {
+            menu.addItem(.separator())
+            let head = NSMenuItem(title: "Diagnóstico", action: nil, keyEquivalent: "")
+            head.isEnabled = false
+            menu.addItem(head)
+            menu.addItem(item("Abrir el registro", #selector(openLog), enabled: true))
+            menu.addItem(item("Forzar reactivación de todas las pantallas",
+                              #selector(turnOn), enabled: true))
+        }
+
         menu.addItem(.separator())
         menu.addItem(item("Salir de PantallaOff", #selector(quit), enabled: true))
         return menu

@@ -31,9 +31,7 @@ devuelve.
 │  ☑ Mantener el Mac despierto         │
 │      …y la pantalla encendida        │
 │  ──────────────────────────────────  │
-│  Reactivar todas las pantallas       │
 │  ☑ Abrir al iniciar sesión           │
-│  Abrir el registro                   │
 │  ──────────────────────────────────  │
 │  Salir de PantallaOff                │
 └──────────────────────────────────────┘
@@ -89,6 +87,11 @@ Clic en **Apagar pantalla del MacBook**. Ya está.
 El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla externa
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
+
+**Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para que aparezcan *Abrir el
+registro* y *Forzar reactivación de todas las pantallas*. Ninguna de las dos hace falta en el
+uso normal — la app sólo apaga una pantalla, así que "reactivar todas" hace lo mismo que el
+interruptor de siempre. Están ahí para cuando algo va mal.
 
 **Un matiz sobre la duplicación.** Si tu pantalla interna es la *fuente* de una duplicación,
 apagarla dejaría sin origen a todo el conjunto, así que la app se niega y te ofrece romper la
@@ -214,7 +217,7 @@ poder teclearla a ciegas. No hace absolutamente nada cuando no hay nada que resc
 | `~/rescue --restore` | Fuerza una restauración completa de la configuración de pantallas. |
 | `~/rescue --last-resort` | Reinicia la sesión gráfica (cierre de sesión, no reinicio). |
 
-La app registra todo en `~/Library/Logs/PantallaOff.log` — mientras hay una pantalla apagada
+La app registra todo en `~/Library/Logs/PantallaOff.log` (⌥ + menú → *Abrir el registro*) — mientras hay una pantalla apagada
 anota cada cambio más un latido cada 30 segundos, de modo que el silencio nunca es un
 resultado posible.
 
