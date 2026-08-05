@@ -59,6 +59,11 @@ final class StayOpenRow: NSView {
             field.backgroundColor = .clear
             field.isBezeled = false
             field.isEditable = false
+            // El menú se dimensiona al abrirse; cambiar de idioma en vivo puede
+            // alargar un título dentro de un ancho ya fijado. Hoy cabe por poco
+            // (3,4 pt en el peor caso ES↔EN), pero si algún día no cabe, mejor
+            // una elipsis que un corte a media letra.
+            field.lineBreakMode = .byTruncatingTail
             addSubview(field)
         }
         check.frame = NSRect(x: Self.checkX, y: 3, width: 16, height: 16)
@@ -100,10 +105,17 @@ final class StayOpenRow: NSView {
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard bounds.contains(point) else { return }
-        // Parpadeo breve, como los ítems nativos al seleccionarse.
+
+        // Parpadeo breve, como los ítems nativos al seleccionarse. Al volver
+        // NO se enciende el resaltado a ciegas: se mira dónde está el ratón de
+        // verdad. Si en esos 80 ms se movió a otra fila, ésta ya no recibirá
+        // mouseExited (el puntero salió mientras estaba apagada) y se quedaría
+        // resaltada junto con la nueva.
         hovered = false
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
-            self?.hovered = true
+            guard let self, let window = self.window else { return }
+            let p = self.convert(window.mouseLocationOutsideOfEventStream, from: nil)
+            self.hovered = self.bounds.contains(p)
         }
         onClick?()
     }

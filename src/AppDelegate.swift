@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var keepDisplayRow: StayOpenRow?
         var kbRow: StayOpenRow?
         var loginRow: StayOpenRow?
+        var loginPlainItem: NSMenuItem?   // variantes requiresApproval / unsupported
         var verboseRow: StayOpenRow?
         var diagHead: NSMenuItem?
         var diagState: NSMenuItem?
@@ -201,10 +202,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             refs.loginRow = row
         case .requiresApproval:
             // Abre Ajustes del Sistema: aquí cerrar el menú es lo correcto.
-            menu.addItem(item(s.openAtLoginDisabledInSettings,
-                              #selector(openLoginItemsSettings), enabled: true))
+            let li = item(s.openAtLoginDisabledInSettings,
+                          #selector(openLoginItemsSettings), enabled: true)
+            menu.addItem(li)
+            refs.loginPlainItem = li
         case .unsupported(let why):
-            menu.addItem(item(s.openAtLoginUnavailable(why), #selector(quit), enabled: false))
+            let li = item(s.openAtLoginUnavailable(why), #selector(quit), enabled: false)
+            menu.addItem(li)
+            refs.loginPlainItem = li
         }
 
         // Diagnóstico: sólo con ⌥ pulsada al abrir el menú.
@@ -324,6 +329,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refs.kbRow?.configure(title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
                               checked: false)
         refs.loginRow?.configure(title: s.openAtLogin, checked: LoginItem.state.isOn)
+        if let li = refs.loginPlainItem {
+            switch LoginItem.state {
+            case .requiresApproval:     li.title = s.openAtLoginDisabledInSettings
+            case .unsupported(let why): li.title = s.openAtLoginUnavailable(why)
+            case .enabled, .disabled:   break   // cambió de forma: se verá al reabrir
+            }
+        }
         refs.verboseRow?.configure(title: s.verboseLog, checked: DisplayControl.verboseLogging)
 
         refs.diagHead?.title = s.diagnostics
@@ -443,13 +455,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() { NSApp.terminate(nil) }
 
+    /// Los interruptores corren DENTRO del tracking del menú (ése es el punto
+    /// de StayOpenRow), y abrir una sesión modal ahí anida un modal dentro del
+    /// bucle de tracking: el menú se queda congelado sobre el alert. Antes no
+    /// pasaba porque AppKit disparaba los selectores tras cerrar el menú. Se
+    /// cierra el menú y se difiere el alert al siguiente ciclo.
     private func alert(_ title: String, _ message: String) {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = message
-        a.alertStyle = .warning
-        a.addButton(withTitle: "OK")
-        a.runModal()
+        let show = {
+            let a = NSAlert()
+            a.messageText = title
+            a.informativeText = message
+            a.alertStyle = .warning
+            a.addButton(withTitle: "OK")
+            a.runModal()
+        }
+        // Siempre, sin intentar adivinar si el menú está en tracking: cancelar
+        // un menú cerrado no hace nada, y diferir un ciclo del run loop es
+        // inocuo también en las rutas asíncronas (apagar/encender pantalla),
+        // donde el menú ya se cerró solo. Predecible mejor que listo.
+        refs.menu?.cancelTracking()
+        DispatchQueue.main.async(execute: show)
     }
 }
 
