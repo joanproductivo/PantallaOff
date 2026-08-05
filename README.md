@@ -4,16 +4,18 @@
 
 English · [Español](README.es.md)
 
-macOS 14+ · Apple Silicon · MIT · No Xcode required
+Apple Silicon · macOS 13+ · MIT · No Xcode required
 
 ---
 
 ## Why
 
-You're working on an external monitor. The MacBook screen below it is doing nothing useful:
-it splits your attention, drags windows into it, and burns battery.
+You're working on an external monitor. Or watching a film on the TV. Either way, the MacBook
+screen below is doing nothing useful: it splits your attention, drags windows into it, glows
+in the dark, and burns battery.
 
-You could close the lid — but then you lose the keyboard, the trackpad, and Touch ID.
+You could close the lid — but then you lose the keyboard, the trackpad, and Touch ID. And if
+you're halfway through a film, closing the lid isn't an option at all.
 
 PantallaOff makes that screen **genuinely disappear**. Not dimmed: gone. macOS behaves as if
 you were running a single display. Windows stop wandering there. One click brings it back.
@@ -46,22 +48,32 @@ you were running a single display. Windows stop wandering there. One click bring
 
 ## Install
 
-Requires only the Xcode Command Line Tools (`xcode-select --install`). No Xcode.
+**Without touching the terminal:**
+
+1. [**Download the project**](https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip)
+   and unzip it.
+2. **Right-click** `install.command` → **Open** → **Open**.
+3. Done. It checks your Mac, builds, installs and launches the app.
+
+> Use right-click → Open, not double-click. Anything downloaded from the internet is
+> quarantined by macOS, and that's the standard way to authorise it the first time. If you
+> cloned with `git` instead, a plain double-click works.
+
+**If you live in the terminal:**
 
 ```bash
 git clone https://github.com/joanproductivo/PantallaOff.git
-cd PantallaOff
-make install
+cd PantallaOff && make install && open /Applications/PantallaOff.app
 ```
 
-That installs `/Applications/PantallaOff.app` and a small rescue tool at `~/rescue`. Then:
+Either way you get `/Applications/PantallaOff.app` and a small rescue tool at `~/rescue`.
+The app itself never triggers a Gatekeeper warning: you compiled it, so it carries no
+quarantine flag.
 
-```bash
-open /Applications/PantallaOff.app
-```
+The only requirement is the Xcode Command Line Tools. If they're missing, the installer opens
+Apple's installer for you and tells you to run it again afterwards. No Xcode needed.
 
-Look for the laptop icon in the menu bar, next to the clock. There's no Gatekeeper warning —
-software you compiled yourself doesn't carry the quarantine flag.
+Look for the laptop icon in the menu bar, next to the clock.
 
 To enable **Abrir al iniciar sesión**, the app must live in `/Applications`, which is where
 `make install` puts it. It never re-applies the "off" state at startup: launching PantallaOff
@@ -75,9 +87,9 @@ The item is greyed out with a reason when it wouldn't be safe — no usable exte
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
-**Mirroring vs. extended.** If you're mirroring, the built-in is showing a copy of the
-external. Turning it off works fine. To actually gain desk space, use System Settings →
-Displays → *Extended display*.
+**One caveat about mirroring.** If your built-in is the *source* of a mirror set, turning it
+off would leave the whole set without a source, so the app refuses and offers to break the
+mirror first. Being the mirrored *copy* is fine — it turns off normally.
 
 ---
 
@@ -218,6 +230,7 @@ src/AppDelegate.swift     menu bar
 tools/probe.c             read-only probe
 tools/rescue.c            rescue tool + out-of-process dead-man
 tools/selftest.c          validation against a chosen display
+install.command           one-click installer (double-clickable in Finder)
 ```
 
 `PantallaCore.c` is the single implementation of the safety predicate. Swift doesn't reimplement
@@ -230,6 +243,10 @@ you can replug by hand. `selftest` refuses to target the built-in unless you pas
 ## Limitations
 
 - **Private API.** Not App Store material, and Apple could break it in a future macOS.
+- **Verified on macOS 26.6 only.** The build targets macOS 13+ and compiles cleanly there, and
+  the disconnect API is documented as working from macOS 13 on Apple Silicon — but everything
+  in this README was measured on 26.6. On older releases, treat it as untested.
+- **Apple Silicon only.** Nothing here was tried on Intel.
 - **The off state doesn't survive a reboot.** That's deliberate — it's the final safety net.
 - **Keep-awake doesn't override closing the lid.** macOS forces sleep regardless of any
   assertion, and here that's a feature: closing the lid is your reliable way back.

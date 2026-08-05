@@ -2,10 +2,10 @@ APP        = PantallaOff
 BUNDLE     = build/$(APP).app
 BIN        = build
 SDK       := $(shell xcrun --show-sdk-path)
-TARGET     = arm64-apple-macos14.0
+TARGET     = arm64-apple-macos13.0
 
 CC         = clang
-CFLAGS     = -Wall -Wextra -O2 -fstack-protector-strong -mmacosx-version-min=14.0
+CFLAGS     = -Wall -Wextra -O2 -fstack-protector-strong -mmacosx-version-min=13.0
 FRAMEWORKS = -framework ApplicationServices -framework CoreGraphics
 
 SWIFTC     = swiftc

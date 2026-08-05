@@ -4,16 +4,18 @@
 
 [English](README.md) · Español
 
-macOS 14+ · Apple Silicon · MIT · No necesita Xcode
+Apple Silicon · macOS 13+ · MIT · No necesita Xcode
 
 ---
 
 ## Por qué
 
-Estás trabajando en un monitor externo. La pantalla del MacBook, ahí abajo, no aporta nada:
-te parte la atención, se traga ventanas y gasta batería.
+Estás trabajando en un monitor externo. O viendo una película en la tele. En cualquier caso,
+la pantalla del MacBook, ahí abajo, no aporta nada: te parte la atención, se traga ventanas,
+alumbra a oscuras y gasta batería.
 
-Podrías cerrar la tapa, pero entonces pierdes el teclado, el trackpad y el Touch ID.
+Podrías cerrar la tapa, pero entonces pierdes el teclado, el trackpad y el Touch ID. Y si
+estás a media película, cerrarla no es ni una opción.
 
 PantallaOff hace que esa pantalla **desaparezca de verdad**. No atenuada: fuera. macOS se
 comporta como si sólo tuvieras un monitor. Las ventanas dejan de irse ahí. Un clic la
@@ -48,23 +50,33 @@ devuelve.
 
 ## Instalación
 
-Sólo necesitas las Command Line Tools de Xcode (`xcode-select --install`). Xcode no.
+**Sin tocar la terminal:**
+
+1. [**Descarga el proyecto**](https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip)
+   y descomprímelo.
+2. **Clic derecho** en `install.command` → **Abrir** → **Abrir**.
+3. Ya está. Comprueba tu Mac, compila, instala y abre la app.
+
+> Usa clic derecho → Abrir, no doble clic. macOS pone en cuarentena todo lo que se descarga de
+> internet, y ésa es la forma estándar de autorizarlo la primera vez. Si lo clonaste con
+> `git`, el doble clic funciona directamente.
+
+**Si vives en la terminal:**
 
 ```bash
 git clone https://github.com/joanproductivo/PantallaOff.git
-cd PantallaOff
-make install
+cd PantallaOff && make install && open /Applications/PantallaOff.app
 ```
 
-Eso instala `/Applications/PantallaOff.app` y una pequeña herramienta de rescate en
-`~/rescue`. Después:
+Por cualquiera de las dos vías acabas con `/Applications/PantallaOff.app` y una pequeña
+herramienta de rescate en `~/rescue`. La app en sí nunca provoca un aviso de Gatekeeper: la
+has compilado tú, así que no lleva la marca de cuarentena.
 
-```bash
-open /Applications/PantallaOff.app
-```
+Lo único que necesitas son las Herramientas de Línea de Comandos de Xcode. Si te faltan, el
+instalador abre el instalador de Apple por ti y te dice que lo vuelvas a ejecutar después.
+Xcode completo no hace falta.
 
-Busca el icono de portátil en la barra de menú, junto al reloj. No saldrá ningún aviso de
-Gatekeeper: el software que compilas tú no lleva la marca de cuarentena.
+Busca el icono de portátil en la barra de menú, junto al reloj.
 
 Para activar **Abrir al iniciar sesión**, la app tiene que estar en `/Applications`, que es
 justo donde la deja `make install`. Nunca vuelve a aplicar el apagado al arrancar: abrir
@@ -78,9 +90,9 @@ El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla e
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
-**Duplicado o ampliado.** Si estás duplicando, la interna muestra una copia del externo.
-Apagarla funciona igual, pero para ganar escritorio de verdad ve a Ajustes del Sistema →
-Pantallas → *Pantalla ampliada*.
+**Un matiz sobre la duplicación.** Si tu pantalla interna es la *fuente* de una duplicación,
+apagarla dejaría sin origen a todo el conjunto, así que la app se niega y te ofrece romper la
+duplicación primero. Ser la *copia* duplicada no es problema: se apaga con normalidad.
 
 ---
 
@@ -227,6 +239,7 @@ src/AppDelegate.swift     barra de menú
 tools/probe.c             sonda de solo lectura
 tools/rescue.c            herramienta de rescate + dead-man fuera de proceso
 tools/selftest.c          validación contra una pantalla concreta
+install.command           instalador de un clic (doble clic desde Finder)
 ```
 
 `PantallaCore.c` es la única implementación del predicado de seguridad. Swift no lo
@@ -239,6 +252,11 @@ menos que pases `--allow-builtin`.
 ## Limitaciones
 
 - **API privada.** No es apta para la App Store, y Apple podría romperla en una macOS futura.
+- **Verificado sólo en macOS 26.6.** La compilación apunta a macOS 13+ y ahí compila sin
+  problemas, y la API de desconexión está documentada como funcional desde macOS 13 en Apple
+  Silicon — pero todo lo que cuenta este README se midió en 26.6. En versiones anteriores,
+  dalo por no probado.
+- **Sólo Apple Silicon.** Nada de esto se ha probado en Intel.
 - **El estado apagado no sobrevive a un reinicio.** Es deliberado: es la red de seguridad
   final.
 - **Mantener despierto no vence al cierre de tapa.** macOS fuerza el reposo al margen de
