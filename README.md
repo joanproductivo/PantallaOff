@@ -87,6 +87,10 @@ The item is greyed out with a reason when it wouldn't be safe — no usable exte
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
+**Toggles don't close the menu.** Keep awake, keyboard backlight, open at login and the
+language switch apply in place — the menu stays open and relabels itself. Actions that
+change your displays still close it, as they should.
+
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
 state, *Open the log*, *Verbose logging* and *Force re-enable all displays*. None of it is
 needed in normal use — the app only ever turns off one screen, so "re-enable all" does the

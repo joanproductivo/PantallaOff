@@ -67,6 +67,7 @@ Reparto del lado Swift:
 | `KeepAwake.swift` | `IOPMAssertion` (API pública) |
 | `KeyboardLight.swift` | `KeyboardBrightnessClient` de CoreBrightness (privada) |
 | `L10n.swift` | cadenas es/en |
+| `MenuRow.swift` | filas de menú que no cierran al hacer clic (interruptores) |
 
 Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre procesos),
 `~/.pantallaoff-armed` (pid del dead-man), `~/Library/Logs/PantallaOff.log`.

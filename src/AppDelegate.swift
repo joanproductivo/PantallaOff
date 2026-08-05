@@ -4,6 +4,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let control = DisplayControl.shared
 
+    /// Referencias a los elementos del menú vivo, para poder re-sincronizar
+    /// títulos, marcas y presencia SIN cerrar el menú: los interruptores usan
+    /// StayOpenRow, y tras cada clic hay que actualizar el resto in situ (el
+    /// menú ya no se reconstruye entre clic y clic, sólo entre aperturas).
+    private struct MenuRefs {
+        weak var menu: NSMenu?
+        var displayItem: NSMenuItem?
+        var breakMirrorItem: NSMenuItem?
+        var awakeItem: NSMenuItem?
+        var awakeRow: StayOpenRow?
+        var keepDisplayItem: NSMenuItem?
+        var keepDisplayRow: StayOpenRow?
+        var kbRow: StayOpenRow?
+        var loginRow: StayOpenRow?
+        var verboseRow: StayOpenRow?
+        var diagHead: NSMenuItem?
+        var diagState: NSMenuItem?
+        var diagExternals: NSMenuItem?
+        var openLogItem: NSMenuItem?
+        var forceItem: NSMenuItem?
+        var quitItem: NSMenuItem?
+        var langItem: NSMenuItem?
+        var langRows: [(Lang, StayOpenRow)] = []
+    }
+    private var refs = MenuRefs()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.menu = NSMenu()
@@ -66,7 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - UI
 
     private func refresh() {
-        guard let button = statusItem.button else { return }
+        syncOpenMenu()
+
+        guard let button = statusItem?.button else { return }
         let state = control.builtInState()
         let symbol: String
         switch state {
@@ -103,8 +131,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - Construcción del menú
+
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+        refs = MenuRefs()
+        refs.menu = menu
         let state = control.builtInState()
 
         // Reconciliar antes de dibujar: si el usuario re-encendió la luz con
@@ -112,107 +144,199 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // próximo arranque de la app.
         KeyboardLight.reconcile()
 
-        // El menú empieza directamente por la acción. El estado no hace falta
-        // escribirlo: el propio interruptor ya dice si toca apagar o encender,
-        // y cuando no se puede, lo dice con el motivo. Lo demás va a
-        // Diagnóstico, bajo ⌥.
+        // La acción principal es un ítem NORMAL: apagar o encender la pantalla
+        // reconfigura los displays, y con eso en marcha lo sano es que el menú
+        // se cierre. Los interruptores de abajo sí se quedan abiertos.
         let s = L10n.t
+        let displayItem: NSMenuItem
         if state == .offByUs {
-            menu.addItem(item(s.turnOnDisplay, #selector(turnOn), enabled: true))
+            displayItem = item(s.turnOnDisplay, #selector(turnOn), enabled: true)
         } else {
             let check = control.canDisableBuiltIn()
-            let title = check.allowed ? s.turnOffDisplay : s.cannotTurnOff(check.reason)
-            menu.addItem(item(title, #selector(turnOff), enabled: check.allowed))
+            displayItem = item(check.allowed ? s.turnOffDisplay : s.cannotTurnOff(check.reason),
+                               #selector(turnOff), enabled: check.allowed)
+        }
+        menu.addItem(displayItem)
+        refs.displayItem = displayItem
 
-            // Camino explícito para el caso "la interna es la fuente del espejo".
-            if control.builtInIsMirrorMaster {
-                menu.addItem(item(s.breakMirror, #selector(breakMirror), enabled: true))
-            }
+        if state != .offByUs, control.builtInIsMirrorMaster {
+            let bm = item(s.breakMirror, #selector(breakMirror), enabled: true)
+            menu.addItem(bm)
+            refs.breakMirrorItem = bm
         }
 
         menu.addItem(.separator())
 
-        // Mantener despierto: un interruptor y su matiz, nada más.
-        let awake = item(s.keepAwake, #selector(toggleKeepAwake), enabled: true)
-        awake.state = KeepAwake.isOn ? .on : .off
-        menu.addItem(awake)
-        if KeepAwake.isOn {
-            let disp = item(s.keepDisplayOn, #selector(toggleKeepDisplay), enabled: true)
-            disp.state = KeepAwake.keepsDisplayOn ? .on : .off
-            menu.addItem(disp)
+        // Mantener despierto: interruptor, no cierra.
+        let (awakeItem, awakeRow) = stayOpenRow(title: s.keepAwake,
+                                                checked: KeepAwake.isOn) { [weak self] in
+            self?.toggleKeepAwake()
         }
+        menu.addItem(awakeItem)
+        refs.awakeItem = awakeItem
+        refs.awakeRow = awakeRow
+        if KeepAwake.isOn { insertKeepDisplayRow(in: menu, after: awakeItem) }
 
         // Luz del teclado: sólo si este Mac tiene teclado retroiluminado.
-        // Título por lectura en vivo, para que refleje la realidad aunque el
-        // usuario la haya cambiado con las teclas de brillo.
+        // El título se recalcula tras cada clic con la lectura en vivo.
         if KeyboardLight.available {
-            let lightOn = KeyboardLight.isOn
-            menu.addItem(item(lightOn ? s.keyboardLightOff : s.keyboardLightOn,
-                              #selector(toggleKeyboardLight), enabled: true))
+            let (kbItem, kbRow) = stayOpenRow(
+                title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
+                checked: false) { [weak self] in self?.toggleKeyboardLight() }
+            menu.addItem(kbItem)
+            refs.kbRow = kbRow
         }
 
         menu.addItem(.separator())
 
         // Arranque al iniciar sesión. Seguro porque la app nunca apaga nada
         // por su cuenta (P1): arrancar sola sólo pone el icono en la barra.
-        let login = LoginItem.state
-        switch login {
+        switch LoginItem.state {
         case .enabled, .disabled:
-            let li = item(s.openAtLogin, #selector(toggleLoginItem), enabled: true)
-            li.state = login.isOn ? .on : .off
+            let (li, row) = stayOpenRow(title: s.openAtLogin,
+                                        checked: LoginItem.state.isOn) { [weak self] in
+                self?.toggleLoginItem()
+            }
             menu.addItem(li)
+            refs.loginRow = row
         case .requiresApproval:
-            let li = item(s.openAtLoginDisabledInSettings,
-                          #selector(openLoginItemsSettings), enabled: true)
-            li.state = .off
-            menu.addItem(li)
+            // Abre Ajustes del Sistema: aquí cerrar el menú es lo correcto.
+            menu.addItem(item(s.openAtLoginDisabledInSettings,
+                              #selector(openLoginItemsSettings), enabled: true))
         case .unsupported(let why):
             menu.addItem(item(s.openAtLoginUnavailable(why), #selector(quit), enabled: false))
         }
 
         // Diagnóstico: sólo con ⌥ pulsada al abrir el menú.
-        //
-        // Nada de esto hace falta en el uso normal: el estado ya lo cuenta el
-        // propio interruptor, "Forzar reactivación" ejecuta la misma acción que
-        // "Encender pantalla del MacBook" (sólo se distingue con el estado
-        // inconsistente, p. ej. tras un selftest interrumpido), y el registro
-        // sólo interesa cuando algo va mal.
         if NSEvent.modifierFlags.contains(.option) {
             menu.addItem(.separator())
             let head = NSMenuItem(title: s.diagnostics, action: nil, keyEquivalent: "")
             head.isEnabled = false
             menu.addItem(head)
+            refs.diagHead = head
 
-            for line in [describe(state),
-                         s.usableExternals(control.usableExternalCount)] {
-                let info = NSMenuItem(title: "  \(line)", action: nil, keyEquivalent: "")
-                info.isEnabled = false
-                menu.addItem(info)
+            let dState = NSMenuItem(title: "  \(describe(state))", action: nil, keyEquivalent: "")
+            dState.isEnabled = false
+            menu.addItem(dState)
+            refs.diagState = dState
+
+            let dExt = NSMenuItem(title: "  \(s.usableExternals(control.usableExternalCount))",
+                                  action: nil, keyEquivalent: "")
+            dExt.isEnabled = false
+            menu.addItem(dExt)
+            refs.diagExternals = dExt
+
+            let ol = item(s.openLog, #selector(openLog), enabled: true)
+            menu.addItem(ol)
+            refs.openLogItem = ol
+
+            let (vi, vRow) = stayOpenRow(title: s.verboseLog,
+                                         checked: DisplayControl.verboseLogging) { [weak self] in
+                self?.toggleVerboseLog()
             }
+            menu.addItem(vi)
+            refs.verboseRow = vRow
 
-            menu.addItem(item(s.openLog, #selector(openLog), enabled: true))
-            let verbose = item(s.verboseLog, #selector(toggleVerboseLog), enabled: true)
-            verbose.state = DisplayControl.verboseLogging ? .on : .off
-            menu.addItem(verbose)
-            menu.addItem(item(s.forceReenable, #selector(turnOn), enabled: true))
+            let force = item(s.forceReenable, #selector(turnOn), enabled: true)
+            menu.addItem(force)
+            refs.forceItem = force
         }
 
         menu.addItem(.separator())
-        menu.addItem(item(s.quit, #selector(quit), enabled: true))
+        let quit = item(s.quit, #selector(quit), enabled: true)
+        menu.addItem(quit)
+        refs.quitItem = quit
 
-        // Idioma DESPUÉS de Salir, como se pidió. (La convención de macOS pone
-        // Salir al final; aquí manda la petición.)
+        // Idioma DESPUÉS de Salir, como se pidió. Cambiarlo re-etiqueta todo el
+        // menú en vivo, sin cerrarlo: la gracia de las filas StayOpenRow.
         let langItem = NSMenuItem(title: s.languageMenu, action: nil, keyEquivalent: "")
         let langMenu = NSMenu()
         for lang in Lang.allCases {
-            let li = item(lang.displayName, #selector(chooseLanguage(_:)), enabled: true)
-            li.state = (L10n.current == lang) ? .on : .off
-            li.representedObject = lang.rawValue
+            let (li, row) = stayOpenRow(title: lang.displayName,
+                                        checked: L10n.current == lang) { [weak self] in
+                self?.chooseLanguage(lang)
+            }
             langMenu.addItem(li)
+            refs.langRows.append((lang, row))
         }
         langItem.submenu = langMenu
         menu.addItem(langItem)
+        refs.langItem = langItem
+
         return menu
+    }
+
+    private func stayOpenRow(title: String, checked: Bool,
+                             onClick: @escaping () -> Void) -> (NSMenuItem, StayOpenRow) {
+        let row = StayOpenRow(title: title, checked: checked)
+        row.onClick = onClick
+        let menuItem = NSMenuItem()
+        menuItem.view = row
+        return (menuItem, row)
+    }
+
+    private func insertKeepDisplayRow(in menu: NSMenu, after awakeItem: NSMenuItem) {
+        let (di, dRow) = stayOpenRow(title: L10n.t.keepDisplayOn,
+                                     checked: KeepAwake.keepsDisplayOn) { [weak self] in
+            self?.toggleKeepDisplay()
+        }
+        menu.insertItem(di, at: menu.index(of: awakeItem) + 1)
+        refs.keepDisplayItem = di
+        refs.keepDisplayRow = dRow
+    }
+
+    /// Re-sincroniza el menú vivo tras un clic en un interruptor: títulos,
+    /// marcas ✓ y la fila condicional de "…y la pantalla encendida". Los ítems
+    /// se mutan in situ — reconstruir el menú entero con él abierto cancelaría
+    /// el tracking.
+    private func syncOpenMenu() {
+        guard refs.menu != nil else { return }
+        let s = L10n.t
+        let state = control.builtInState()
+
+        if let di = refs.displayItem {
+            if state == .offByUs {
+                di.title = s.turnOnDisplay
+                di.action = #selector(turnOn)
+                di.isEnabled = true
+            } else {
+                let check = control.canDisableBuiltIn()
+                di.title = check.allowed ? s.turnOffDisplay : s.cannotTurnOff(check.reason)
+                di.action = check.allowed ? #selector(turnOff) : nil
+                di.isEnabled = check.allowed
+            }
+        }
+        refs.breakMirrorItem?.title = s.breakMirror
+
+        refs.awakeRow?.configure(title: s.keepAwake, checked: KeepAwake.isOn)
+        if KeepAwake.isOn {
+            if refs.keepDisplayItem == nil, let menu = refs.menu, let ai = refs.awakeItem {
+                insertKeepDisplayRow(in: menu, after: ai)
+            }
+            refs.keepDisplayRow?.configure(title: s.keepDisplayOn,
+                                           checked: KeepAwake.keepsDisplayOn)
+        } else if let di = refs.keepDisplayItem {
+            di.menu?.removeItem(di)
+            refs.keepDisplayItem = nil
+            refs.keepDisplayRow = nil
+        }
+
+        refs.kbRow?.configure(title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
+                              checked: false)
+        refs.loginRow?.configure(title: s.openAtLogin, checked: LoginItem.state.isOn)
+        refs.verboseRow?.configure(title: s.verboseLog, checked: DisplayControl.verboseLogging)
+
+        refs.diagHead?.title = s.diagnostics
+        refs.diagState?.title = "  \(describe(state))"
+        refs.diagExternals?.title = "  \(s.usableExternals(control.usableExternalCount))"
+        refs.openLogItem?.title = s.openLog
+        refs.forceItem?.title = s.forceReenable
+
+        refs.quitItem?.title = s.quit
+        refs.langItem?.title = s.languageMenu
+        for (lang, row) in refs.langRows {
+            row.configure(title: lang.displayName, checked: L10n.current == lang)
+        }
     }
 
     private func item(_ title: String, _ action: Selector, enabled: Bool) -> NSMenuItem {
@@ -252,7 +376,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func toggleKeepAwake() {
+    private func toggleKeepAwake() {
         let turningOn = !KeepAwake.isOn
         if let problem = KeepAwake.set(enabled: turningOn,
                                        includeDisplay: KeepAwake.keepsDisplayOn) {
@@ -263,7 +387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh()
     }
 
-    @objc private func toggleKeepDisplay() {
+    private func toggleKeepDisplay() {
         let turningOn = !KeepAwake.keepsDisplayOn
         if let problem = KeepAwake.adjustDisplay(turningOn) {
             alert(L10n.t.alertKeepDisplayTitle, problem)
@@ -273,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh()
     }
 
-    @objc private func toggleLoginItem() {
+    private func toggleLoginItem() {
         let turningOn = !LoginItem.state.isOn
         if let problem = LoginItem.setEnabled(turningOn) {
             alert(L10n.t.alertLoginItemTitle, problem)
@@ -283,7 +407,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh()
     }
 
-    @objc private func toggleKeyboardLight() {
+    private func toggleKeyboardLight() {
         let turningOff = KeyboardLight.isOn
         let ok = turningOff ? KeyboardLight.turnOff() : KeyboardLight.turnOn()
         if ok {
@@ -294,11 +418,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh()
     }
 
-    @objc private func chooseLanguage(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let lang = Lang(rawValue: raw) else { return }
+    private func chooseLanguage(_ lang: Lang) {
         L10n.current = lang
-        control.write("idioma: \(raw)")
+        control.write("idioma: \(lang.rawValue)")
         refresh()
     }
 
@@ -307,7 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(url)
     }
 
-    @objc private func toggleVerboseLog() {
+    private func toggleVerboseLog() {
         DisplayControl.verboseLogging.toggle()
         control.write("registro detallado: \(DisplayControl.verboseLogging ? "activado" : "desactivado")")
         refresh()
@@ -332,14 +454,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 extension AppDelegate: NSMenuDelegate {
-    // Se reconstruye en cada apertura: el estado puede haber cambiado por el
-    // watchdog, por un hot-plug o por el propio sistema.
+    // Se reconstruye en cada APERTURA (no en cada clic: los interruptores
+    // actualizan el menú vivo vía syncOpenMenu sin cerrarlo).
     func menuNeedsUpdate(_ menu: NSMenu) {
-        // Se puebla el menú vivo con los ítems frescos, SIN copiarlos.
-        // La versión anterior hacía item.copy() y re-asignaba el target sólo en
-        // el nivel superior: con el submenú de idioma, sus ítems se habrían
-        // quedado sin target. Como buildMenu() ya crea ítems nuevos en cada
-        // llamada, la copia no aportaba nada.
         menu.removeAllItems()
         for item in buildMenu().items {
             // item.menu, no item.parent: `parent` es el ítem que contiene un
@@ -350,5 +467,7 @@ extension AppDelegate: NSMenuDelegate {
             item.menu?.removeItem(item)
             menu.addItem(item)
         }
+        // Las referencias apuntan al menú vivo, no al temporal ya vaciado.
+        refs.menu = menu
     }
 }

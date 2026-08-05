@@ -90,6 +90,10 @@ El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla e
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
+**Los interruptores no cierran el menú.** Mantener despierto, luz del teclado, abrir al
+iniciar sesión y el idioma se aplican en el sitio: el menú se queda abierto y se re-etiqueta
+solo. Las acciones que tocan pantallas sí lo cierran, como debe ser.
+
 **Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
 pantallas, *Abrir el registro*, *Registro detallado* y *Forzar reactivación de todas las
 pantallas*. Nada de eso hace falta en el uso normal — la app sólo apaga una pantalla, así que
