@@ -10,6 +10,11 @@
  *   rescue --disarm        desarma el dead-man pendiente
  *   rescue --status        solo informa, no toca nada
  *   rescue --restore       fuerza CGRestorePermanentDisplayConfiguration()
+ *   rescue --last-resort   reinicia la sesión gráfica (logout, no reboot)
+ *
+ * Nota: hay UNA sola ranura de dead-man (~/.pantallaoff-armed). Armar de nuevo
+ * desarma al anterior. Si mezclas la app y selftest a la vez, la red del uno
+ * sustituye a la del otro.
  *
  * Por qué no basta con enumerar displays: un display desactivado con
  * CGSConfigureDisplayEnabled SALE de CGGetOnlineDisplayList y de Información
@@ -26,11 +31,8 @@
 #include <signal.h>
 #include <errno.h>
 #include <spawn.h>
-#include <sys/stat.h>
 #include <mach-o/dyld.h>
 #include <libproc.h>
-#include <limits.h>
-#include <stdlib.h>
 
 extern char **environ;
 
@@ -180,8 +182,10 @@ static int do_armed_child(int seconds) {
     for (int i = 0; i < seconds && !g_disarmed; i++) sleep(1);
 
     char path[1024];
-    if (g_disarmed) {                       /* alguien confirmó que todo va bien */
-        pc_log("dead-man desarmado sin disparar (pid %d)", getpid());
+    if (g_disarmed) {
+        /* Desarme limpio = camino feliz. Deliberadamente NO se escribe nada en
+         * disco: cada apagado normal pasa por aquí, y registrarlo creaba el
+         * fichero de log en el uso cotidiano. El disparo sí se registra. */
         return 0;
     }
 
@@ -196,7 +200,13 @@ static int do_armed_child(int seconds) {
            r.ok, r.had_evidence, r.active_before, r.active_after,
            r.targeted_ok, r.targeted_attempts, r.used_permanent_restore);
 
-    if (armed_pid_path(path, sizeof path)) unlink(path);
+    /* Borrar el pid-file SÓLO si sigue siendo nuestro. pc_rescue puede tardar
+     * >20 s; en ese hueco otro proceso puede haber armado un dead-man nuevo y
+     * reescrito el fichero — borrárselo lo dejaría huérfano e indesarmable, y
+     * dispararía deshaciendo un apagado que el usuario acababa de pedir. */
+    if (read_armed_pid() == getpid() && armed_pid_path(path, sizeof path)) {
+        unlink(path);
+    }
     return r.ok ? 0 : 1;
 }
 

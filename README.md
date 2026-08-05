@@ -82,9 +82,9 @@ or your built-in is currently the source of a mirror set. To bring the screen ba
 again, quit the app, or run `~/rescue`.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
-state, *Open the log*, *Verbose logging* and *Force re-enable all displays*. Neither is needed in normal use — the app only ever turns
-off one screen, so "re-enable all" does the same thing as the regular toggle. They're there
-for when something goes wrong.
+state, *Abrir el registro*, *Registro detallado* and *Forzar reactivación*. None of it is
+needed in normal use — the app only ever turns off one screen, so "re-enable all" does the
+same thing as the regular toggle. It's there for when something goes wrong.
 
 **One caveat about mirroring.** If your built-in is the *source* of a mirror set, turning it
 off would leave the whole set without a source, so the app refuses and offers to break the
@@ -190,7 +190,8 @@ sudo killall -HUP WindowServer
 This restarts the graphics session in about ten seconds — you land at the login screen on the
 built-in display, without rebooting. You lose open apps, like a logout. It works over SSH,
 which is worth setting up (System Settings → General → Sharing → Remote Login) if you plan to
-use this on the road. Shortcut: `~/rescue --last-resort`.
+use this on the road. Shortcut: `~/rescue --last-resort` (to run it without typing a password blind, install the
+minimal sudo rule in `tools/sudoers-pantallaoff` — instructions inside the file).
 
 Worst case: hold the power button. The configuration is never permanent, so a reboot always
 restores the display.
@@ -238,6 +239,8 @@ src/AppDelegate.swift     menu bar
 tools/probe.c             read-only probe
 tools/rescue.c            rescue tool + out-of-process dead-man
 tools/selftest.c          validation against a chosen display
+tools/make-icon.swift     draws the app icon in code (make icon)
+tools/sudoers-pantallaoff optional NOPASSWD rule for --last-resort
 install.command           one-click installer (double-clickable in Finder)
 ```
 

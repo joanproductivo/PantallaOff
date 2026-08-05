@@ -13,11 +13,12 @@
  * máquina con recuperación física garantizada (hotplug). La interna de un
  * MacBook no se puede reconectar: si algo sale mal, no hay plan B por hardware.
  *
- * El experimento que decide la capa 4 del plan:
- *     ./selftest <idExterno> hold        (en una terminal)
- *     kill -9 <pid>                      (en otra)
- *   ¿vuelve el display? -> ForAppOnly cubre el bit privado 'enabled' y el
- *   WindowServer nos protege gratis ante cualquier muerte del proceso.
+ * El experimento de la capa 4 YA SE EJECUTÓ (2026-08-04, macOS 26.6):
+ *     ./selftest <idExterno> hold  +  kill -9 <pid>
+ *   Resultado: el display NO volvió (12 s después seguía desaparecido).
+ *   kCGConfigureForAppOnly revierte modo y topología pero NO el bit privado
+ *   'enabled'. Conclusión vigente: la única red contra SIGKILL es el dead-man.
+ *   El modo hold se conserva para poder reproducir la medición.
  */
 #include "../src/PantallaCore.h"
 
@@ -56,13 +57,6 @@ static uint32_t survivors_excluding(CGDirectDisplayID target) {
         }
     }
     return count;
-}
-
-static uint32_t active_total(void) {
-    CGDirectDisplayID act[PC_MAX_DISPLAYS];
-    uint32_t n = 0;
-    CGGetActiveDisplayList(PC_MAX_DISPLAYS, act, &n);
-    return n;
 }
 
 static void restore_now(void) {
@@ -161,7 +155,7 @@ int main(int argc, char **argv) {
             "Recuerda que 'utilizable' exige además estar despierto y no ser\n"
             "esclavo de un espejo. Si estás en modo ESPEJO, la pantalla esclava\n"
             "no cuenta: cambia a modo extendido antes de ejecutar esta prueba.\n",
-            target, active_total());
+            target, pc_active_display_count());
         return 1;
     }
 
@@ -209,7 +203,7 @@ int main(int argc, char **argv) {
         deadman("--disarm", 0);
         return 1;
     }
-    printf("display %u DESACTIVADO (activos ahora: %u)\n", target, active_total());
+    printf("display %u DESACTIVADO (activos ahora: %u)\n", target, pc_active_display_count());
 
     if (hold) {
         printf("\n*** MODO HOLD — pid %d ***\n", getpid());
@@ -230,7 +224,7 @@ int main(int argc, char **argv) {
     /* --- Reversión ------------------------------------------------------ */
     restore_now();
     sleep(1);
-    uint32_t after = active_total();
+    uint32_t after = pc_active_display_count();
     printf("display reactivado (activos ahora: %u)\n", after);
     deadman("--disarm", 0);
     return after > 0 ? 0 : 1;

@@ -8,8 +8,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <IOKit/IOKitLib.h>
 
 /* ===========================================================================
  * Enumeración
@@ -50,7 +52,6 @@ uint32_t pc_snapshot(pc_display *out, uint32_t cap) {
         CGDirectDisplayID d = on[i];
         out[i].id            = d;
         out[i].builtin       = CGDisplayIsBuiltin(d);
-        out[i].online        = true;
         out[i].active        = CGDisplayIsActive(d);
         out[i].asleep        = CGDisplayIsAsleep(d);
         out[i].in_mirror_set = CGDisplayIsInMirrorSet(d);
@@ -71,7 +72,17 @@ CGDirectDisplayID pc_builtin_id(void) {
     return kCGNullDirectDisplay;
 }
 
-bool pc_is_laptop(void) {
+/* ¿Es un portátil? La señal fiable es LA BATERÍA, no el nombre del modelo:
+ * desde 2022 los identificadores son "Mac14,x"/"Mac15,x"/"Mac16,x" y ya no
+ * contienen "Book" (verificado en esta máquina: hw.model = Mac15,10). La
+ * primera versión hacía strstr("Book") y devolvía false en todos los MacBooks
+ * modernos — dejando ciega la señal de rescate que no depende del fichero de
+ * estado. El strstr se conserva sólo como respaldo para modelos antiguos. */
+static bool pc_is_laptop(void) {
+    io_service_t batt = IOServiceGetMatchingService(kIOMainPortDefault,
+                            IOServiceMatching("AppleSmartBattery"));
+    if (batt != IO_OBJECT_NULL) { IOObjectRelease(batt); return true; }
+
     char model[256];
     size_t len = sizeof model;
     if (sysctlbyname("hw.model", model, &len, NULL, 0) != 0) return false;
@@ -231,6 +242,22 @@ bool pc_home_path(const char *filename, char *out, size_t out_len) {
     return written > 0 && (size_t)written < out_len;
 }
 
+/* Candado entre procesos para el ciclo leer-modificar-escribir del estado.
+ * La escritura ya era atómica (tmp+fsync+rename), pero add/remove concurrentes
+ * desde la app, el dead-man y un rescue manual podían perderse actualizaciones
+ * entre sí. flock basta: son procesos del mismo usuario en el mismo $HOME. */
+static int pc_state_lock(void) {
+    char path[1024];
+    if (!pc_home_path(PC_STATE_FILE ".lock", path, sizeof path)) return -1;
+    int fd = open(path, O_CREAT | O_RDWR, 0644);
+    if (fd >= 0) flock(fd, LOCK_EX);
+    return fd;
+}
+
+static void pc_state_unlock(int fd) {
+    if (fd >= 0) { flock(fd, LOCK_UN); close(fd); }
+}
+
 uint32_t pc_state_read_entries(pc_state_entry *out, uint32_t cap) {
     char path[1024];
     if (!pc_home_path(PC_STATE_FILE, path, sizeof path)) return 0;
@@ -244,9 +271,13 @@ uint32_t pc_state_read_entries(pc_state_entry *out, uint32_t cap) {
         if (line[0] == '#') continue;
         unsigned long v = 0;
         int b = 0;
-        if (sscanf(line, "disabled=%lu builtin=%d", &v, &b) >= 1 && v != 0) {
+        unsigned tr = 0;
+        /* tries= es opcional: ficheros de versiones anteriores no lo llevan. */
+        if (sscanf(line, "disabled=%lu builtin=%d tries=%u", &v, &b, &tr) >= 1 &&
+            v != 0 && v <= 0xFFFFFFFFUL) {
             out[count].id = (CGDirectDisplayID)v;
             out[count].was_builtin = (b != 0);
+            out[count].tries = tr;
             count++;
         }
     }
@@ -285,7 +316,8 @@ static bool pc_state_write(const pc_state_entry *e, uint32_t n) {
                "# permite volver a encenderla. Si lo pierdes: ~/rescue --restore\n");
     fprintf(f, "ts=%lld\n", (long long)time(NULL));
     for (uint32_t i = 0; i < n; i++) {
-        fprintf(f, "disabled=%u builtin=%d\n", e[i].id, e[i].was_builtin ? 1 : 0);
+        fprintf(f, "disabled=%u builtin=%d tries=%u\n",
+                e[i].id, e[i].was_builtin ? 1 : 0, e[i].tries);
     }
 
     if (fflush(f) != 0)        { fclose(f); unlink(tmp); return false; }
@@ -309,34 +341,64 @@ bool pc_state_contains(CGDirectDisplayID id) {
 }
 
 bool pc_state_add(CGDirectDisplayID id, bool was_builtin) {
+    int lock = pc_state_lock();
     pc_state_entry e[PC_MAX_DISPLAYS];
     uint32_t n = pc_state_read_entries(e, PC_MAX_DISPLAYS);
+    bool ok;
     for (uint32_t i = 0; i < n; i++) {
-        if (e[i].id == id) { e[i].was_builtin = was_builtin; return pc_state_write(e, n); }
+        if (e[i].id == id) {
+            e[i].was_builtin = was_builtin;
+            e[i].tries = 0;
+            ok = pc_state_write(e, n);
+            pc_state_unlock(lock);
+            return ok;
+        }
     }
-    if (n >= PC_MAX_DISPLAYS) return false;
-    e[n].id = id; e[n].was_builtin = was_builtin; n++;
-    return pc_state_write(e, n);
+    if (n >= PC_MAX_DISPLAYS) { pc_state_unlock(lock); return false; }
+    e[n].id = id; e[n].was_builtin = was_builtin; e[n].tries = 0; n++;
+    ok = pc_state_write(e, n);
+    pc_state_unlock(lock);
+    return ok;
 }
 
 bool pc_state_remove(CGDirectDisplayID id) {
+    int lock = pc_state_lock();
     pc_state_entry e[PC_MAX_DISPLAYS], keep[PC_MAX_DISPLAYS];
     uint32_t n = pc_state_read_entries(e, PC_MAX_DISPLAYS), k = 0;
     for (uint32_t i = 0; i < n; i++) if (e[i].id != id) keep[k++] = e[i];
-    if (k == n) return true;
-    return pc_state_write(keep, k);
+    bool ok = (k == n) ? true : pc_state_write(keep, k);
+    pc_state_unlock(lock);
+    return ok;
 }
 
-bool pc_state_clear(void) { return pc_state_write(NULL, 0); }
+/* Sube el contador de intentos fallidos de una entrada. Devuelve el valor
+ * nuevo (0 si la entrada no existe). */
+static unsigned pc_state_bump_tries(CGDirectDisplayID id) {
+    int lock = pc_state_lock();
+    pc_state_entry e[PC_MAX_DISPLAYS];
+    uint32_t n = pc_state_read_entries(e, PC_MAX_DISPLAYS);
+    unsigned result = 0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (e[i].id == id) {
+            e[i].tries++;
+            result = e[i].tries;
+            pc_state_write(e, n);
+            break;
+        }
+    }
+    pc_state_unlock(lock);
+    return result;
+}
 
 /* ===========================================================================
  * Rescate
  * ======================================================================== */
 
-static uint32_t pc_active_count(void) {
+uint32_t pc_active_display_count(void) {
     CGDirectDisplayID act[PC_MAX_DISPLAYS];
     return pc_active_list(act, PC_MAX_DISPLAYS);
 }
+
 
 /* Online, inactivo y fuera de todo mirror set: sospechoso de estar desactivado.
  * Los esclavos de espejo se excluyen a propósito — también salen de la lista
@@ -346,7 +408,7 @@ static bool pc_is_rescue_candidate(CGDirectDisplayID id) {
     return !CGDisplayIsActive(id) && !CGDisplayIsInMirrorSet(id);
 }
 
-bool pc_rescue_evidence(void) {
+static bool pc_rescue_evidence(void) {
     pc_state_entry e[PC_MAX_DISPLAYS];
     if (pc_state_read_entries(e, PC_MAX_DISPLAYS) > 0) return true;
 
@@ -365,7 +427,7 @@ bool pc_rescue_evidence(void) {
 pc_rescue_result pc_rescue_ex(bool force_restore) {
     pc_rescue_result r;
     memset(&r, 0, sizeof r);
-    r.active_before = pc_active_count();
+    r.active_before = pc_active_display_count();
     r.had_evidence  = pc_rescue_evidence();
 
     /* Salida temprana: sin indicios, NO TOCAR NADA.
@@ -410,26 +472,52 @@ pc_rescue_result pc_rescue_ex(bool force_restore) {
     }
 
     /* Éxito real = el ID ha vuelto a la lista online, no que la transacción
-     * devolviera kCGErrorSuccess. */
+     * devolviera kCGErrorSuccess. Las entradas de EXTERNOS que no vuelven se
+     * podan a los 3 intentos: sus IDs se reciclan (observado 2→22→23), así que
+     * un ID de externo que nunca reaparece es irrecuperable por definición —y
+     * si el usuario lo reenchufa, vuelve solo por hotplug—. Sin la poda, una
+     * entrada rancia hacía fallar el rescate para siempre y disparaba el
+     * martillo en cada pasada del watchdog. Las de la INTERNA no se podan
+     * jamás: son la única llave de un panel que no se puede reenchufar. */
+    bool builtin_unrecovered = false;
     for (uint32_t i = 0; i < n; i++) {
-        if (pc_in_online_list(st[i].id)) { r.targeted_ok++; pc_state_remove(st[i].id); }
+        if (pc_in_online_list(st[i].id)) {
+            r.targeted_ok++;
+            pc_state_remove(st[i].id);
+        } else if (st[i].was_builtin) {
+            builtin_unrecovered = true;
+        } else {
+            unsigned tries = pc_state_bump_tries(st[i].id);
+            if (tries >= 3) {
+                pc_log("rescate: podando entrada rancia de externo %u tras %u intentos "
+                       "(su ID ya no existe; si se reenchufa vuelve por hotplug)",
+                       st[i].id, tries);
+                pc_state_remove(st[i].id);
+                r.targeted_ok++;   /* podada = resuelta a efectos del resultado */
+            }
+        }
     }
 
-    /* 3. Martillo público: sólo si algo sigue sin volver, o si nos lo piden. */
-    bool unrecovered = (r.targeted_ok < r.targeted_attempts);
+    /* 3. Martillo público: reescribe la configuración permanente del usuario,
+     * así que sólo cuando hay motivo de verdad — nos lo piden, la INTERNA
+     * sigue sin volver, falta la interna de un portátil, o cero pantallas.
+     * Un externo rancio ya no lo dispara. */
     bool laptop_builtin_missing = pc_is_laptop() && pc_builtin_id() == kCGNullDirectDisplay;
-    if (force_restore || unrecovered || laptop_builtin_missing || pc_active_count() == 0) {
+    if (force_restore || builtin_unrecovered || laptop_builtin_missing || pc_active_display_count() == 0) {
         CGRestorePermanentDisplayConfiguration();
         r.used_permanent_restore = true;
         sleep(1);
         for (uint32_t i = 0; i < n; i++) {
             if (pc_in_online_list(st[i].id)) pc_state_remove(st[i].id);
         }
+        /* Resuelto = ya no consta en el estado (volvió, o se podó) . */
         r.targeted_ok = 0;
-        for (uint32_t i = 0; i < n; i++) if (pc_in_online_list(st[i].id)) r.targeted_ok++;
+        for (uint32_t i = 0; i < n; i++) {
+            if (!pc_state_contains(st[i].id)) r.targeted_ok++;
+        }
     }
 
-    r.active_after = pc_active_count();
+    r.active_after = pc_active_display_count();
     r.ok = (r.active_after > 0) && (r.targeted_ok >= r.targeted_attempts);
 
     /* Cero pantallas antes y cero después: estamos en el estado que NO tiene

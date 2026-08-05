@@ -33,8 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // explícitamente evita dejar una entrada fantasma en `pmset -g assertions`.
         KeepAwake.set(enabled: false, includeDisplay: false)
 
-        // Con kCGConfigureForAppOnly el sistema ya revierte al terminar, pero no
-        // se depende de eso: encender explícitamente es barato e idempotente.
+        // MEDIDO: kCGConfigureForAppOnly NO revierte el bit 'enabled' ni
+        // siquiera en una salida limpia. Este encendido explícito es la única
+        // reversión real al salir.
         if !control.disabledByUs().isEmpty {
             control.write("saliendo: reactivando pantallas")
             control.turnOnAllBlocking()
@@ -155,11 +156,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Diagnóstico: sólo con ⌥ pulsada al abrir el menú.
         //
-        // Ninguna de estas dos cosas hace falta en el uso normal. "Forzar
-        // reactivación" ejecuta la misma acción que "Encender pantalla del
-        // MacBook" —la app sólo apaga una pantalla— y sólo se distingue cuando
-        // el estado quedó inconsistente, p. ej. tras un selftest interrumpido.
-        // El registro sólo interesa cuando algo va mal.
+        // Nada de esto hace falta en el uso normal: el estado ya lo cuenta el
+        // propio interruptor, "Forzar reactivación" ejecuta la misma acción que
+        // "Encender pantalla del MacBook" (sólo se distingue con el estado
+        // inconsistente, p. ej. tras un selftest interrumpido), y el registro
+        // sólo interesa cuando algo va mal.
         if NSEvent.modifierFlags.contains(.option) {
             menu.addItem(.separator())
             let head = NSMenuItem(title: "Diagnóstico", action: nil, keyEquivalent: "")

@@ -42,7 +42,6 @@ extern CGError CGSConfigureDisplayEnabled(CGDisplayConfigRef config,
 typedef struct {
     CGDirectDisplayID id;
     bool     builtin;
-    bool     online;
     bool     active;
     bool     asleep;
     bool     in_mirror_set;
@@ -60,12 +59,6 @@ uint32_t pc_snapshot(pc_display *out, uint32_t cap);
  * devuelve 0. Para el rescate hay que usar el ID persistido, no esto. */
 CGDirectDisplayID pc_builtin_id(void);
 
-/* ¿Es un portátil? (hw.model contiene "Book"). Se usa como señal
- * independiente de la enumeración: en un MacBook, que NO aparezca ninguna
- * pantalla interna en la lista online sólo puede significar que está
- * desactivada. */
-bool pc_is_laptop(void);
-
 /* --- Predicado de seguridad (el corazón del proyecto) -------------------- */
 
 /* Un externo es UTILIZABLE si:
@@ -78,6 +71,9 @@ bool pc_is_laptop(void);
 bool pc_is_usable_external(CGDirectDisplayID id, CGDirectDisplayID builtin_id);
 
 uint32_t pc_usable_external_count(void);
+
+/* Displays en la lista Active. */
+uint32_t pc_active_display_count(void);
 
 /* ¿La interna es la FUENTE de un mirror set?
  *
@@ -101,9 +97,12 @@ bool pc_can_disable_builtin(char *reason, size_t reason_len);
  * no longer valid" — así que cancelarla después sería usar memoria liberada.)
  *
  * `option` importa mucho:
- *   kCGConfigureForAppOnly  -> el WindowServer REVIERTE al morir el proceso.
- *                              Es la red de seguridad que sobrevive a SIGKILL.
- *                              Úsalo para DESACTIVAR desde la app.
+ *   kCGConfigureForAppOnly  -> para DESACTIVAR desde la app. OJO, MEDIDO
+ *                              (2026-08-04, kill -9): el WindowServer revierte
+ *                              modo y topología al morir el proceso, pero NO el
+ *                              bit privado 'enabled'. NO es una red contra
+ *                              SIGKILL; la red real es el dead-man. Se mantiene
+ *                              ForAppOnly porque es gratis y no estorba.
  *   kCGConfigurePermanently -> persiste y además pasa a ser la config de sesión.
  *                              Úsalo para ACTIVAR desde el rescate: si el
  *                              rescate usara ForAppOnly, el enable se revertiría
@@ -123,6 +122,9 @@ CGError pc_unmirror_slaves_of(CGDirectDisplayID master, CGConfigureOption option
 typedef struct {
     CGDirectDisplayID id;
     bool was_builtin;   /* si el ID era la pantalla interna al desactivarla */
+    unsigned tries;     /* intentos fallidos de reactivación (para podar
+                           entradas rancias de externos; la interna no se
+                           poda jamás) */
 } pc_state_entry;
 
 uint32_t pc_state_read(CGDirectDisplayID *out, uint32_t cap);
@@ -132,7 +134,6 @@ uint32_t pc_state_read_entries(pc_state_entry *out, uint32_t cap);
 bool pc_state_add(CGDirectDisplayID id, bool was_builtin);
 
 bool pc_state_remove(CGDirectDisplayID id);
-bool pc_state_clear(void);
 bool pc_state_contains(CGDirectDisplayID id);
 
 /* ¿Consta la PANTALLA INTERNA como desactivada por nosotros?
@@ -164,18 +165,6 @@ typedef struct {
  *
  * Consecuencia: si te quedas sin ninguna pantalla, el rescate por software es
  * imposible. Las únicas salidas son reconectar un monitor o reiniciar. */
-
-/* ¿Hay indicios de que algo esté desactivado por nosotros?
- *
- * Tres señales independientes:
- *   - el fichero de estado no está vacío
- *   - hay un display online, inactivo y fuera de todo mirror set (sospechoso)
- *   - es un portátil y NO aparece ninguna pantalla interna en la lista online
- *
- * Deliberadamente NO cuenta como indicio que haya cero pantallas activas: eso
- * es lo que ocurre cuando el equipo simplemente ha dormido las pantallas, y es
- * justo el momento en que alguien teclearía `rescue` a ciegas. */
-bool pc_rescue_evidence(void);
 
 /* Reactiva lo que pueda. Si `force_restore`, usa el martillo público
  * (CGRestorePermanentDisplayConfiguration) sin pedir indicios. */

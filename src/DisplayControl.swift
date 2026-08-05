@@ -28,7 +28,11 @@ final class DisplayControl {
     private let log = Logger(subsystem: "com.joanplanas.pantallaoff", category: "display")
 
     /// Cuánto tiempo tiene el dead-man antes de disparar si no lo desarmamos.
-    private let deadmanSeconds = 15
+    /// 30 s y no 15: se midieron transacciones CG bloqueadas ~21 s con
+    /// WindowServer en estados raros, y un dead-man que dispara DURANTE un
+    /// apagado legítimo lento limpia el estado en el peor momento. Sigue siendo
+    /// corto frente a un cuelgue real de la app.
+    private let deadmanSeconds = 30
 
     /// Cada cuánto reevalúa el watchdog aunque no haya callback.
     /// El caso peligroso (externo dormido, KVM conmutado, entrada del monitor
@@ -114,8 +118,9 @@ final class DisplayControl {
             return .failure(.stateWriteFailed)
         }
 
-        // kCGConfigureForAppOnly: el WindowServer revierte al terminar este
-        // proceso, pase lo que pase. Es la red que sobrevive a SIGKILL.
+        // kCGConfigureForAppOnly. MEDIDO (kill -9): NO revierte el bit privado
+        // 'enabled' al morir el proceso — la red real contra SIGKILL es el
+        // dead-man. Se mantiene ForAppOnly porque es gratis y no estorba.
         let err = pc_set_display_enabled(id, false, .forAppOnly)
         guard err == .success else {
             pc_state_remove(id)
@@ -127,14 +132,46 @@ final class DisplayControl {
         // Post-condición con el MISMO predicado que la precondición. Contar
         // displays "activos" no vale: uno dormido sigue en la lista Active, así
         // que desarmaríamos la red con el usuario ya a ciegas.
-        Thread.sleep(forTimeInterval: 0.6)
-        if usableExternalCount == 0 {
-            writeProblem("post-condición fallida: sin externo utilizable, revirtiendo")
-            _ = turnOnAllSync()
+        //
+        // Se sondea hasta 2 s en vez de una única muestra: con un dock, el
+        // externo puede tardar en re-asentarse en la lista Active tras la
+        // reconfiguración, y una muestra única convertía apagados válidos en
+        // reversiones espurias.
+        var externalBack = false
+        for _ in 0..<10 {
+            Thread.sleep(forTimeInterval: 0.2)
+            if usableExternalCount > 0 { externalBack = true; break }
+        }
+        if !externalBack {
+            writeProblem("post-condición fallida: sin externo utilizable tras 2 s, revirtiendo")
+            let reverted = turnOnAllSync()
+            // El dead-man sólo se desarma si la reversión funcionó; si falló,
+            // que dispare: es la última red que queda.
+            if reverted { _ = disarmDeadman() }
             return .failure(.postconditionFailed)
         }
 
-        _ = disarmDeadman()
+        // Integridad antes de desarmar: si la transacción fue lenta, el
+        // dead-man pudo disparar en medio, ver la interna aún online y limpiar
+        // el estado — dejando el panel apagado sin su llave en disco.
+        if pc_builtin_id() != 0 && CGDisplayIsActive(pc_builtin_id()) != 0 {
+            // Alguien (dead-man, rescue manual) re-encendió la interna mientras
+            // terminábamos: aceptar la interferencia, no pelear contra ella.
+            pc_state_remove(id)
+            _ = disarmDeadman()
+            writeProblem("interferencia durante el apagado: la interna volvió; se acepta")
+            notifyChange()
+            return .failure(.preconditionFailed("Otra herramienta reactivó la pantalla; vuelve a intentarlo"))
+        }
+        if !pc_state_contains(id) {
+            write("estado limpiado por un tercero durante el apagado; re-escribiendo la llave")
+            _ = pc_state_add(id, true)
+        }
+
+        if !disarmDeadman() {
+            writeProblem("no se pudo desarmar el dead-man tras un apagado correcto; "
+                         + "disparará en ~\(deadmanSeconds) s y re-encenderá la pantalla")
+        }
         write("interna \(id) desactivada; externos utilizables: \(usableExternalCount)")
         notifyChange()
         return .success(())
@@ -158,7 +195,7 @@ final class DisplayControl {
     /// reintentar hasta que vuelva a haber alguna. Reintentar cada 3 s no
     /// arregla nada y llena el log de ruido: medido, ~50 intentos inútiles en
     /// 18 minutos, cada uno bloqueando ~21 s.
-    private var strandedSince: Date?
+    private var isStranded = false
 
     @discardableResult
     private func turnOnAllSync() -> Bool {
@@ -167,15 +204,15 @@ final class DisplayControl {
               + "IDs \(r.targeted_ok)/\(r.targeted_attempts), "
               + "restauración permanente: \(r.used_permanent_restore)")
         if r.stranded {
-            if strandedSince == nil {
-                strandedSince = Date()
+            if !isStranded {
+                isStranded = true
                 writeProblem("*** SIN SALIDA POR SOFTWARE *** No queda ninguna pantalla activa y "
                       + "CGSConfigureDisplayEnabled no puede completarse en ese estado. "
                       + "Reconecta el monitor externo (la interna volverá sola) o reinicia. "
                       + "Se dejan de hacer reintentos hasta que haya alguna pantalla.")
             }
         } else {
-            strandedSince = nil
+            isStranded = false
         }
         notifyChange()
         return r.ok
@@ -244,6 +281,24 @@ final class DisplayControl {
                 self.turnOnAllBlocking()
         }
 
+        // Reposo de pantallas del SISTEMA (temporizador de Ajustes): mientras
+        // macOS tenga todas las pantallas dormidas a propósito, el watchdog no
+        // rescata — el externo aparece dormido, pero no es una emergencia, es
+        // la noche. Sin esto, cada periodo de inactividad re-encendía la
+        // interna y deshacía el apagado del usuario. El caso "monitor apagado
+        // por su botón" NO emite esta notificación, así que sigue cubierto.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidSleepNotification,
+            object: nil, queue: .main) { [weak self] _ in
+                self?.workQueue.async { self?.systemScreensAsleep = true }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification,
+            object: nil, queue: .main) { [weak self] _ in
+                self?.workQueue.async { self?.systemScreensAsleep = false }
+                self?.evaluateSafety(trigger: "screensWake")
+        }
+
         // Timer: imprescindible. Un externo que se duerme (DPMS), un KVM
         // conmutado o una entrada de monitor cambiada NO generan callback.
         let t = Timer(timeInterval: watchdogInterval, repeats: true) { [weak self] _ in
@@ -255,12 +310,6 @@ final class DisplayControl {
         startIOKitWatcher()
 
         write("watchdog iniciado (callback + screenParameters + wake + timer \(watchdogInterval)s + IOKit)")
-    }
-
-    func stopWatchdog() {
-        CGDisplayRemoveReconfigurationCallback(pantallaReconfigCallback, nil)
-        watchdogTimer?.invalidate()
-        watchdogTimer = nil
     }
 
     // MARK: - Vigía IOKit (capa 5d)
@@ -300,6 +349,8 @@ final class DisplayControl {
             refcon, &ioTerminatedIter)
         guard kr == KERN_SUCCESS else {
             writeProblem("vigía IOKit: AddMatchingNotification falló (\(kr))")
+            IONotificationPortDestroy(port)
+            ioNotifyPort = nil
             return
         }
         // Armar la notificación: hay que drenar el iterador inicial.
@@ -392,17 +443,35 @@ final class DisplayControl {
     /// fast-path de CG y al vigía IOKit. ForSession: rápido y suficiente; no
     /// reescribe la configuración permanente del usuario.
     func emergencyEnableBuiltin(reason: String, alreadyLocked: Bool) {
-        if !alreadyLocked {
-            fastPathLock.lock()
-            defer { fastPathLock.unlock() }
-            guard Date().timeIntervalSince(fastPathLastAttempt) > 1.0 else { return }
-            fastPathLastAttempt = Date()
+        // OJO con el ámbito del defer: una versión anterior lo tenía DENTRO del
+        // `if`, con lo que el candado se soltaba antes de mutar y dos hilos
+        // (ioQueue y workQueue) podían entrar a la vez en la transacción CG.
+        if alreadyLocked {
+            emergencyEnableLocked(reason: reason)
+            return
         }
+        fastPathLock.lock()
+        defer { fastPathLock.unlock() }
+        guard Date().timeIntervalSince(fastPathLastAttempt) > 1.0 else { return }
+        fastPathLastAttempt = Date()
+        emergencyEnableLocked(reason: reason)
+    }
+
+    /// Requiere fastPathLock tomado. Reintenta: la notificación IOKit llega UNA
+    /// vez, y si el enable falla dentro de la ventana zombi (WindowServer en
+    /// plena transición) no habría segunda oportunidad — el watchdog no ayuda
+    /// en zombi puro porque sigue viendo el externo como utilizable.
+    private func emergencyEnableLocked(reason: String) {
         var entries = [pc_state_entry](repeating: pc_state_entry(), count: Int(PC_MAX_DISPLAYS))
         let n = pc_state_read_entries(&entries, UInt32(PC_MAX_DISPLAYS))
         for e in entries.prefix(Int(n)) where e.was_builtin {
-            let err = pc_set_display_enabled(e.id, true, .forSession)
-            pc_log_str("\(reason); enable(\(e.id)) -> CGError \(err.rawValue)")
+            var err = CGError.failure
+            for attempt in 1...3 {
+                err = pc_set_display_enabled(e.id, true, .forSession)
+                pc_log_str("\(reason); enable(\(e.id)) intento \(attempt) -> CGError \(err.rawValue)")
+                if err == .success { break }
+                usleep(300_000)
+            }
             if err == .success {
                 pc_state_remove(e.id)
                 notifyChange()
@@ -421,6 +490,10 @@ final class DisplayControl {
         workQueue.async { self.evaluateSafetySync(trigger: trigger) }
     }
 
+    /// true mientras macOS tiene las pantallas dormidas por inactividad.
+    /// Sólo se toca en workQueue.
+    private var systemScreensAsleep = false
+
     private var heartbeatLast = Date.distantPast
     private var heartbeatSnapshot = ""
 
@@ -433,6 +506,22 @@ final class DisplayControl {
     private var knownExternalIDs: Set<CGDirectDisplayID>?
 
     private func evaluateSafetySync(trigger: String) {
+        // Reconciliación continua (antes sólo al arrancar): una entrada cuyo
+        // display está online Y activo describe algo que ya no está apagado —
+        // p. ej. el enable de willSleep aterrizó pero su remove se perdió en
+        // una carrera. Sin esto, la UI mentía hasta relanzar la app. Corre en
+        // workQueue, serializada con turnOffBuiltInSync, así que no puede
+        // pisar un apagado en vuelo.
+        var entries = [pc_state_entry](repeating: pc_state_entry(), count: Int(PC_MAX_DISPLAYS))
+        let entryCount = pc_state_read_entries(&entries, UInt32(PC_MAX_DISPLAYS))
+        for e in entries.prefix(Int(entryCount)) {
+            if CGDisplayIsActive(e.id) != 0 {
+                write("reconciliación: \(e.id) está online y activo; su entrada era rancia")
+                pc_state_remove(e.id)
+                notifyChange()
+            }
+        }
+
         guard !disabledByUs().isEmpty else {
             knownExternalIDs = nil
             return
@@ -446,7 +535,8 @@ final class DisplayControl {
         var snap = "cg-ve:"
         var online = [CGDirectDisplayID](repeating: 0, count: Int(PC_MAX_DISPLAYS))
         var no: UInt32 = 0
-        if CGGetOnlineDisplayList(UInt32(PC_MAX_DISPLAYS), &online, &no) == .success {
+        let listOK = CGGetOnlineDisplayList(UInt32(PC_MAX_DISPLAYS), &online, &no) == .success
+        if listOK {
             for id in online.prefix(Int(no)) {
                 snap += " \(id)["
                 snap += CGDisplayIsBuiltin(id) != 0 ? "int" : "ext"
@@ -476,34 +566,39 @@ final class DisplayControl {
 
         // Acelerador: ¿ha desaparecido (o se ha re-registrado) algún externo?
         // Acción = encender: fail-open, un falso positivo cuesta un clic.
-        let currentExternals = Set(online.prefix(Int(no)).filter { CGDisplayIsBuiltin($0) == 0 })
-        if let known = knownExternalIDs {
-            let vanished = known.subtracting(currentExternals)
-            if !vanished.isEmpty && pc_state_builtin_disabled() {
-                write("acelerador (\(trigger)): externo(s) \(vanished.sorted()) desaparecido(s) o re-registrado(s)")
-                emergencyEnableBuiltin(reason: "cg-reenum", alreadyLocked: false)
+        //
+        // Guardas: (a) si la enumeración falló, no se evalúa nada — un fallo
+        // transitorio de la lista vaciaba el conjunto y disparaba en falso;
+        // (b) si sobrevive un externo utilizable cuyo ID ya conocíamos, no hay
+        // emergencia — con dos monitores, quitar uno no debe encender la
+        // interna. En el re-registro zombi (2→23) el superviviente tiene ID
+        // NUEVO, así que ese caso sigue disparando.
+        if listOK {
+            let currentExternals = Set(online.prefix(Int(no)).filter { CGDisplayIsBuiltin($0) == 0 })
+            if let known = knownExternalIDs {
+                let vanished = known.subtracting(currentExternals)
+                let stableSurvivorUsable = currentExternals.intersection(known)
+                    .contains { pc_is_usable_external($0, pc_builtin_id()) }
+                if !vanished.isEmpty && !stableSurvivorUsable && pc_state_builtin_disabled() {
+                    write("acelerador (\(trigger)): externo(s) \(vanished.sorted()) desaparecido(s) o re-registrado(s)")
+                    emergencyEnableBuiltin(reason: "cg-reenum", alreadyLocked: false)
+                }
             }
+            knownExternalIDs = currentExternals
         }
-        knownExternalIDs = currentExternals
 
         guard usable == 0 else { return }
 
+        // Con las pantallas dormidas por el sistema no hay emergencia que
+        // rescatar: nadie está mirando. Se re-evalúa en screensWake.
+        guard !systemScreensAsleep else { return }
+
         // Si ya sabemos que estamos sin salida, no reintentar hasta que
         // reaparezca alguna pantalla activa.
-        if strandedSince != nil && activeDisplayCount() == 0 { return }
+        if isStranded && Int(pc_active_display_count()) == 0 { return }
 
         writeProblem("watchdog (\(trigger)): sin externo utilizable con algo apagado -> reactivando")
         _ = turnOnAllSync()
-    }
-
-    /// Displays en la lista Active. Sólo se usa para detectar el estado "cero
-    /// pantallas", no como predicado de seguridad — para eso está
-    /// `usableExternalCount`, que además exige despierto y no espejado.
-    private func activeDisplayCount() -> Int {
-        var ids = [CGDirectDisplayID](repeating: 0, count: Int(PC_MAX_DISPLAYS))
-        var n: UInt32 = 0
-        guard CGGetActiveDisplayList(UInt32(PC_MAX_DISPLAYS), &ids, &n) == .success else { return 0 }
-        return Int(n)
     }
 
     private func notifyChange() { DispatchQueue.main.async { self.onChange?() } }
@@ -548,7 +643,7 @@ final class DisplayControl {
         // Confirmar que el dead-man existe de verdad y sigue vivo, no fiarse
         // sólo del código de salida del padre.
         let pidFile = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".pantallaoff-armed")
+            .appendingPathComponent(PC_ARMED_FILE)
         guard let text = try? String(contentsOf: pidFile, encoding: .utf8),
               let pid = Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)),
               kill(pid, 0) == 0 else {
@@ -613,11 +708,13 @@ final class DisplayControl {
         pc_log_str("PROBLEMA: \(message)")
     }
 
-    private static func stamp() -> String {
+    private static let stampFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
-        return f.string(from: Date())
-    }
+        return f
+    }()
+
+    private static func stamp() -> String { stampFormatter.string(from: Date()) }
 
 }
 

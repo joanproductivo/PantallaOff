@@ -6,7 +6,7 @@ TARGET     = arm64-apple-macos13.0
 
 CC         = clang
 CFLAGS     = -Wall -Wextra -O2 -fstack-protector-strong -mmacosx-version-min=13.0
-FRAMEWORKS = -framework ApplicationServices -framework CoreGraphics
+FRAMEWORKS = -framework ApplicationServices -framework CoreGraphics -framework IOKit
 
 SWIFTC     = swiftc
 SWIFTFLAGS = -sdk $(SDK) -target $(TARGET) -O \

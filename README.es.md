@@ -86,9 +86,9 @@ clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
 **Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
 pantallas, *Abrir el registro*, *Registro detallado* y *Forzar reactivación de todas las
-pantallas*. Ninguna de las dos hace falta en el
-uso normal — la app sólo apaga una pantalla, así que "reactivar todas" hace lo mismo que el
-interruptor de siempre. Están ahí para cuando algo va mal.
+pantallas*. Nada de eso hace falta en el uso normal — la app sólo apaga una pantalla, así que
+"reactivar todas" hace lo mismo que el interruptor de siempre. Está ahí para cuando algo va
+mal.
 
 **Un matiz sobre la duplicación.** Si tu pantalla interna es la *fuente* de una duplicación,
 apagarla dejaría sin origen a todo el conjunto, así que la app se niega y te ofrece romper la
@@ -199,7 +199,8 @@ Reinicia la sesión gráfica en unos diez segundos: apareces en la pantalla de i
 en el panel interno, sin reiniciar el equipo. Pierdes las apps abiertas, como un cierre de
 sesión. Funciona por SSH, que conviene tener activado (Ajustes del Sistema → General →
 Compartir → Inicio de sesión remoto) si vas a usar esto fuera de casa. Atajo:
-`~/rescue --last-resort`.
+`~/rescue --last-resort` (para ejecutarlo sin teclear la contraseña a ciegas, instala la
+regla mínima de sudo de `tools/sudoers-pantallaoff` — instrucciones dentro del fichero).
 
 En el peor caso: mantén pulsado el botón de encendido. La configuración nunca es permanente,
 así que un reinicio siempre devuelve la pantalla.
@@ -247,6 +248,8 @@ src/AppDelegate.swift     barra de menú
 tools/probe.c             sonda de solo lectura
 tools/rescue.c            herramienta de rescate + dead-man fuera de proceso
 tools/selftest.c          validación contra una pantalla concreta
+tools/make-icon.swift     dibuja el icono de la app por código (make icon)
+tools/sudoers-pantallaoff regla NOPASSWD opcional para --last-resort
 install.command           instalador de un clic (doble clic desde Finder)
 ```
 
