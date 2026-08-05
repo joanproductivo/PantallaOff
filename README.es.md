@@ -23,15 +23,11 @@ devuelve.
 
 ```
 ┌──────────────────────────────────────┐
-│  Pantalla del MacBook: encendida     │
-│  Pantallas externas utilizables: 1   │
-│  ──────────────────────────────────  │
 │  Apagar pantalla del MacBook         │  ← toda la idea es esto
 │  ──────────────────────────────────  │
-│  ☑ Mantener el Mac despierto         │
-│      …y la pantalla encendida        │
+│  ☐ Mantener el Mac despierto         │
 │  ──────────────────────────────────  │
-│  ☑ Abrir al iniciar sesión           │
+│  ☐ Abrir al iniciar sesión           │
 │  ──────────────────────────────────  │
 │  Salir de PantallaOff                │
 └──────────────────────────────────────┘
@@ -88,8 +84,9 @@ El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla e
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
-**Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para que aparezcan *Abrir el
-registro* y *Forzar reactivación de todas las pantallas*. Ninguna de las dos hace falta en el
+**Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
+pantallas, *Abrir el registro*, *Registro detallado* y *Forzar reactivación de todas las
+pantallas*. Ninguna de las dos hace falta en el
 uso normal — la app sólo apaga una pantalla, así que "reactivar todas" hace lo mismo que el
 interruptor de siempre. Están ahí para cuando algo va mal.
 

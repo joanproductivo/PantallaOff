@@ -22,15 +22,11 @@ you were running a single display. Windows stop wandering there. One click bring
 
 ```
 ┌──────────────────────────────────────┐
-│  Pantalla del MacBook: encendida     │
-│  Pantallas externas utilizables: 1   │
-│  ──────────────────────────────────  │
 │  Apagar pantalla del MacBook         │  ← that's the whole idea
 │  ──────────────────────────────────  │
-│  ☑ Mantener el Mac despierto         │
-│      …y la pantalla encendida        │
+│  ☐ Mantener el Mac despierto         │
 │  ──────────────────────────────────  │
-│  ☑ Abrir al iniciar sesión           │
+│  ☐ Abrir al iniciar sesión           │
 │  ──────────────────────────────────  │
 │  Salir de PantallaOff                │
 └──────────────────────────────────────┘
@@ -85,8 +81,8 @@ The item is greyed out with a reason when it wouldn't be safe — no usable exte
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
-**Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal *Open the log*
-and *Force re-enable all displays*. Neither is needed in normal use — the app only ever turns
+**Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
+state, *Open the log*, *Verbose logging* and *Force re-enable all displays*. Neither is needed in normal use — the app only ever turns
 off one screen, so "re-enable all" does the same thing as the regular toggle. They're there
 for when something goes wrong.
 
