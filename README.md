@@ -22,13 +22,15 @@ you were running a single display. Windows stop wandering there. One click bring
 
 ```
 ┌──────────────────────────────────────┐
-│  Apagar pantalla del MacBook         │  ← that's the whole idea
+│  Turn off MacBook display            │  ← that's the whole idea
 │  ──────────────────────────────────  │
-│  ☐ Mantener el Mac despierto         │
+│  ☐ Keep the Mac awake                │
+│  ☐ Turn off keyboard backlight       │
 │  ──────────────────────────────────  │
-│  ☐ Abrir al iniciar sesión           │
+│  ☐ Open at login                     │
 │  ──────────────────────────────────  │
-│  Salir de PantallaOff                │
+│  Quit PantallaOff                    │
+│  Idioma / Language              ▶    │
 └──────────────────────────────────────┘
 ```
 
@@ -37,8 +39,11 @@ you were running a single display. Windows stop wandering there. One click bring
 - **Turn the built-in display off and on** from the menu bar.
 - **Keep your Mac awake** — the essential half of Amphetamine, as a single switch. Optionally
   keep the screen on too.
+- **Turn the keyboard backlight off and on.** Just the switch — the brightness keys already
+  handle the rest. It gives you your auto-brightness setting back when you turn it on again.
 - **Start at login**, if you want it.
-- **Nothing else.** No timers, no triggers, no dashboard. It does two things well.
+- **English and Spanish**, switchable from the menu, applied instantly.
+- **Nothing else.** No timers, no triggers, no dashboard. Every switch is one click deep.
 
 ## Install
 
@@ -67,22 +72,23 @@ quarantine flag.
 The only requirement is the Xcode Command Line Tools. If they're missing, the installer opens
 Apple's installer for you and tells you to run it again afterwards. No Xcode needed.
 
-Look for the laptop icon in the menu bar, next to the clock.
+Look for the laptop icon in the menu bar, next to the clock. The app follows your system
+language; to change it, use **Idioma / Language** at the bottom of the menu.
 
-To enable **Abrir al iniciar sesión**, the app must live in `/Applications`, which is where
+To enable **Open at login**, the app must live in `/Applications`, which is where
 `make install` puts it. It never re-applies the "off" state at startup: launching PantallaOff
 only puts the icon in your menu bar.
 
 ## Using it
 
-Click **Apagar pantalla del MacBook**. That's it.
+Click **Turn off MacBook display**. That's it.
 
 The item is greyed out with a reason when it wouldn't be safe — no usable external display,
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
-state, *Abrir el registro*, *Registro detallado* and *Forzar reactivación*. None of it is
+state, *Open the log*, *Verbose logging* and *Force re-enable all displays*. None of it is
 needed in normal use — the app only ever turns off one screen, so "re-enable all" does the
 same thing as the regular toggle. It's there for when something goes wrong.
 
@@ -234,6 +240,8 @@ src/PantallaCore.{h,c}    the safety predicate, mutation, state, rescue — one 
 src/Bridge.h              exposes the C core to Swift
 src/DisplayControl.swift  watchdog, IOKit watcher, dead-man, logging
 src/KeepAwake.swift       keep awake (IOPMAssertion — public API)
+src/KeyboardLight.swift   keyboard backlight (CoreBrightness, private)
+src/L10n.swift            English/Spanish strings
 src/LoginItem.swift       start at login (SMAppService)
 src/AppDelegate.swift     menu bar
 tools/probe.c             read-only probe

@@ -69,7 +69,7 @@ enum KeepAwake {
                                              reason as CFString,
                                              &newID)
         guard rc == kIOReturnSuccess else {
-            return "No se pudo activar (IOReturn \(String(format: "0x%08x", rc)))"
+            return L10n.t.awakeFailed(String(format: "0x%08x", rc))
         }
         id = newID
         return nil

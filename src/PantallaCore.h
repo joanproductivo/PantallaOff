@@ -83,8 +83,24 @@ uint32_t pc_active_display_count(void);
  * que declare explícitamente estar espejando a la interna. */
 bool pc_builtin_is_mirror_master(CGDirectDisplayID builtin_id);
 
+/* Motivo por el que no se puede apagar la interna.
+ *
+ * El código va aparte del texto para que la app pueda traducirlo sin duplicar
+ * el predicado ni, peor, parsear cadenas. Las herramientas C siguen usando la
+ * versión con texto, que se implementa encima de ésta. */
+typedef enum {
+    PC_DENY_OK = 0,          /* sí se puede apagar                            */
+    PC_DENY_ALREADY_OFF,     /* ya consta apagada por nosotros                */
+    PC_DENY_NO_BUILTIN,      /* no se encuentra la pantalla interna           */
+    PC_DENY_MIRROR_MASTER,   /* la interna es la fuente de una duplicación    */
+    PC_DENY_NO_EXTERNAL,     /* sin externo utilizable donde seguir viendo    */
+} pc_deny_reason;
+
+pc_deny_reason pc_can_disable_builtin_why(void);
+
 /* ¿Se puede apagar la interna ahora mismo?
- * Si devuelve false, escribe en `reason` un motivo legible para la UI. */
+ * Si devuelve false, escribe en `reason` un motivo legible EN ESPAÑOL. Para la
+ * app usa `pc_can_disable_builtin_why` y traduce el código. */
 bool pc_can_disable_builtin(char *reason, size_t reason_len);
 
 /* --- Mutación ------------------------------------------------------------ */

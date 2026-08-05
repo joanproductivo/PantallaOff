@@ -30,7 +30,7 @@ enum LoginItem {
 
     static var state: State {
         guard Bundle.main.bundleIdentifier != nil else {
-            return .unsupported("La app no está empaquetada (ejecútala desde el .app)")
+            return .unsupported(L10n.t.loginNotBundled)
         }
         switch SMAppService.mainApp.status {
         case .enabled:          return .enabled
@@ -41,20 +41,17 @@ enum LoginItem {
         // register() funciona igualmente y el estado pasa a .enabled. Tratarlo
         // como "no disponible" deshabilitaba el menú sin motivo.
         case .notFound:         return .disabled
-        @unknown default:       return .unsupported("Estado desconocido")
+        @unknown default:       return .unsupported(L10n.t.loginUnknownState)
         }
     }
 
     /// Devuelve nil si todo fue bien, o un mensaje para mostrar al usuario.
     static func setEnabled(_ enabled: Bool) -> String? {
         guard Bundle.main.bundleIdentifier != nil else {
-            return "Esta copia no está empaquetada. Ejecuta PantallaOff.app, no el binario suelto."
+            return L10n.t.loginRunTheApp
         }
         if enabled && !isInStableLocation {
-            return "Instala primero la app en /Applications (make install).\n\n"
-                 + "El elemento de inicio guarda la ruta del bundle, y apuntar a "
-                 + "\(Bundle.main.bundlePath) dejaría un arranque roto en cuanto muevas o "
-                 + "borres esa carpeta."
+            return L10n.t.loginInstallFirst(Bundle.main.bundlePath)
         }
         do {
             if enabled {
@@ -64,9 +61,7 @@ enum LoginItem {
             }
             return nil
         } catch {
-            return "No se pudo cambiar el arranque automático: \(error.localizedDescription)\n\n"
-                 + "Puedes hacerlo a mano en Ajustes del Sistema → General → "
-                 + "Ítems de inicio y extensiones."
+            return L10n.t.loginCouldNotChange(error.localizedDescription)
         }
     }
 }

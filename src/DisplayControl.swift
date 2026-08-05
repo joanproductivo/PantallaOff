@@ -19,7 +19,8 @@ enum BuiltInState: Equatable {
 
 struct DisableCheck {
     let allowed: Bool
-    let reason: String
+    let reason: String        // ya localizado, listo para la UI
+    let code: pc_deny_reason  // para el log: monolingüe y greppable
 }
 
 final class DisplayControl {
@@ -79,11 +80,35 @@ final class DisplayControl {
 
     var builtInIsMirrorMaster: Bool { pc_builtin_is_mirror_master(builtInID) }
 
-    /// Delega en el mismo predicado C que usan las herramientas.
+    /// Delega en el mismo predicado C que usan las herramientas, pero pide el
+    /// CÓDIGO en vez del texto: así la app traduce sin duplicar el predicado ni
+    /// parsear cadenas. La versión con texto sigue existiendo para probe.
     func canDisableBuiltIn() -> DisableCheck {
-        var buf = [CChar](repeating: 0, count: 256)
-        let ok = pc_can_disable_builtin(&buf, buf.count)
-        return DisableCheck(allowed: ok, reason: String(cString: buf))
+        let why = pc_can_disable_builtin_why()
+        let s = L10n.t
+        let reason: String
+        switch why {
+        case PC_DENY_OK:            reason = "OK"
+        case PC_DENY_ALREADY_OFF:   reason = s.denyAlreadyOff
+        case PC_DENY_NO_BUILTIN:    reason = s.denyNoBuiltin
+        case PC_DENY_MIRROR_MASTER: reason = s.denyMirrorMaster
+        case PC_DENY_NO_EXTERNAL:   reason = s.denyNoExternal
+        default:                    reason = s.denyUnknown
+        }
+        return DisableCheck(allowed: why == PC_DENY_OK, reason: reason, code: why)
+    }
+
+    /// Nombre del motivo para el registro: el log se queda monolingüe aunque la
+    /// interfaz cambie de idioma.
+    private func denyName(_ code: pc_deny_reason) -> String {
+        switch code {
+        case PC_DENY_OK:            return "OK"
+        case PC_DENY_ALREADY_OFF:   return "ALREADY_OFF"
+        case PC_DENY_NO_BUILTIN:    return "NO_BUILTIN"
+        case PC_DENY_MIRROR_MASTER: return "MIRROR_MASTER"
+        case PC_DENY_NO_EXTERNAL:   return "NO_EXTERNAL"
+        default:                    return "UNKNOWN"
+        }
     }
 
     // MARK: - Acciones del usuario (las ÚNICAS que pueden apagar — P1)
@@ -98,11 +123,11 @@ final class DisplayControl {
     private func turnOffBuiltInSync() -> Result<Void, PantallaError> {
         let check = canDisableBuiltIn()
         guard check.allowed else {
-            write("apagado rechazado por la precondición: \(check.reason)")
+            write("apagado rechazado por la precondición: \(denyName(check.code))")
             return .failure(.preconditionFailed(check.reason))
         }
         let id = builtInID
-        guard id != 0 else { return .failure(.preconditionFailed("Interna no encontrada")) }
+        guard id != 0 else { return .failure(.preconditionFailed(L10n.t.errBuiltinNotFound)) }
 
         // P3 — dead-man FUERA de proceso, ANTES de mutar. Si no se puede armar,
         // no se muta: es la única capa que sobrevive a un SIGKILL mientras el
@@ -161,7 +186,7 @@ final class DisplayControl {
             _ = disarmDeadman()
             writeProblem("interferencia durante el apagado: la interna volvió; se acepta")
             notifyChange()
-            return .failure(.preconditionFailed("Otra herramienta reactivó la pantalla; vuelve a intentarlo"))
+            return .failure(.preconditionFailed(L10n.t.errInterference))
         }
         if !pc_state_contains(id) {
             write("estado limpiado por un tercero durante el apagado; re-escribiendo la llave")
@@ -728,15 +753,10 @@ enum PantallaError: Error {
     var localizedDescription: String {
         switch self {
         case .preconditionFailed(let r): return r
-        case .postconditionFailed:
-            return "La operación dejaba el equipo sin pantalla utilizable; se ha revertido"
-        case .stateWriteFailed:
-            return "No se pudo guardar el estado en disco"
-        case .deadmanUnavailable:
-            return "No se pudo armar la red de seguridad (falta el binario 'rescue'). "
-                 + "No se ha tocado ninguna pantalla."
-        case .cgError(let e):
-            return "Error de CoreGraphics \(e.rawValue)"
+        case .postconditionFailed:       return L10n.t.errPostcondition
+        case .stateWriteFailed:          return L10n.t.errStateWrite
+        case .deadmanUnavailable:        return L10n.t.errDeadmanUnavailable
+        case .cgError(let e):            return L10n.t.errCGError(e.rawValue)
         }
     }
 }

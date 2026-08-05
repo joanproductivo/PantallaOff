@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // todo está online y activo (p.ej. hubo un reinicio, que descarta la
         // configuración), el fichero de estado está obsoleto.
         reconcileStaleState()
+        KeyboardLight.reconcile()
         refresh()
 
         let loginState: String
@@ -22,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .enabled:          loginState = "activado"
         case .disabled:         loginState = "desactivado"
         case .requiresApproval: loginState = "requiere aprobación en Ajustes"
-        case .unsupported(let why): loginState = "no disponible (\(why))"
+        case .unsupported: loginState = "no disponible"   // el motivo va traducido: fuera del log
         }
         control.write("PantallaOff arrancada desde \(Bundle.main.bundlePath) "
                       + "| arranque al inicio: \(loginState)")
@@ -32,6 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Las assertions de energía mueren con el proceso, pero soltarlas
         // explícitamente evita dejar una entrada fantasma en `pmset -g assertions`.
         KeepAwake.set(enabled: false, includeDisplay: false)
+
+        // La luz del teclado NO muere con el proceso: si la dejáramos apagada,
+        // el auto-brillo del sistema quedaría desactivado a espaldas del usuario
+        // de forma indefinida. Se restaura, igual que las pantallas.
+        KeyboardLight.restoreOnQuit()
 
         // MEDIDO: kCGConfigureForAppOnly NO revierte el bit 'enabled' ni
         // siquiera en una salida limpia. Este encendido explícito es la única
@@ -80,20 +86,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         var tip = describe(state)
         if KeepAwake.isOn {
-            tip += KeepAwake.keepsDisplayOn
-                ? "\nDespierto, con la pantalla encendida"
-                : "\nManteniendo el Mac despierto"
+            tip += "\n" + (KeepAwake.keepsDisplayOn
+                ? L10n.t.tipAwakeWithDisplay
+                : L10n.t.tipAwake)
         }
         button.toolTip = tip
     }
 
     private func describe(_ state: BuiltInState) -> String {
         switch state {
-        case .on:            return "Pantalla del MacBook: encendida"
-        case .mirroredSlave: return "Pantalla del MacBook: encendida, mostrando un espejo"
-        case .mirrorMaster:  return "Pantalla del MacBook: encendida, y es la fuente del espejo"
-        case .offByUs:       return "Pantalla del MacBook: apagada por PantallaOff"
-        case .missing:       return "Pantalla del MacBook: no encontrada"
+        case .on:            return L10n.t.stateOn
+        case .mirroredSlave: return L10n.t.stateMirroredSlave
+        case .mirrorMaster:  return L10n.t.stateMirrorMaster
+        case .offByUs:       return L10n.t.stateOffByUs
+        case .missing:       return L10n.t.stateMissing
         }
     }
 
@@ -101,38 +107,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         let state = control.builtInState()
 
+        // Reconciliar antes de dibujar: si el usuario re-encendió la luz con
+        // las teclas F, hay que devolverle el auto-brillo ya, no esperar al
+        // próximo arranque de la app.
+        KeyboardLight.reconcile()
+
         // El menú empieza directamente por la acción. El estado no hace falta
         // escribirlo: el propio interruptor ya dice si toca apagar o encender,
         // y cuando no se puede, lo dice con el motivo. Lo demás va a
         // Diagnóstico, bajo ⌥.
+        let s = L10n.t
         if state == .offByUs {
-            menu.addItem(item("Encender pantalla del MacBook",
-                              #selector(turnOn), enabled: true))
+            menu.addItem(item(s.turnOnDisplay, #selector(turnOn), enabled: true))
         } else {
             let check = control.canDisableBuiltIn()
-            let title = check.allowed
-                ? "Apagar pantalla del MacBook"
-                : "No se puede apagar — \(check.reason)"
+            let title = check.allowed ? s.turnOffDisplay : s.cannotTurnOff(check.reason)
             menu.addItem(item(title, #selector(turnOff), enabled: check.allowed))
 
             // Camino explícito para el caso "la interna es la fuente del espejo".
             if control.builtInIsMirrorMaster {
-                menu.addItem(item("Romper el espejo (la interna es la fuente)",
-                                  #selector(breakMirror), enabled: true))
+                menu.addItem(item(s.breakMirror, #selector(breakMirror), enabled: true))
             }
         }
 
         menu.addItem(.separator())
 
         // Mantener despierto: un interruptor y su matiz, nada más.
-        let awake = item("Mantener el Mac despierto", #selector(toggleKeepAwake), enabled: true)
+        let awake = item(s.keepAwake, #selector(toggleKeepAwake), enabled: true)
         awake.state = KeepAwake.isOn ? .on : .off
         menu.addItem(awake)
         if KeepAwake.isOn {
-            let disp = item("      …y la pantalla encendida",
-                            #selector(toggleKeepDisplay), enabled: true)
+            let disp = item(s.keepDisplayOn, #selector(toggleKeepDisplay), enabled: true)
             disp.state = KeepAwake.keepsDisplayOn ? .on : .off
             menu.addItem(disp)
+        }
+
+        // Luz del teclado: sólo si este Mac tiene teclado retroiluminado.
+        // Título por lectura en vivo, para que refleje la realidad aunque el
+        // usuario la haya cambiado con las teclas de brillo.
+        if KeyboardLight.available {
+            let lightOn = KeyboardLight.isOn
+            menu.addItem(item(lightOn ? s.keyboardLightOff : s.keyboardLightOn,
+                              #selector(toggleKeyboardLight), enabled: true))
         }
 
         menu.addItem(.separator())
@@ -142,16 +158,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let login = LoginItem.state
         switch login {
         case .enabled, .disabled:
-            let li = item("Abrir al iniciar sesión", #selector(toggleLoginItem), enabled: true)
+            let li = item(s.openAtLogin, #selector(toggleLoginItem), enabled: true)
             li.state = login.isOn ? .on : .off
             menu.addItem(li)
         case .requiresApproval:
-            let li = item("Abrir al iniciar sesión — desactivado en Ajustes",
+            let li = item(s.openAtLoginDisabledInSettings,
                           #selector(openLoginItemsSettings), enabled: true)
             li.state = .off
             menu.addItem(li)
         case .unsupported(let why):
-            menu.addItem(item("Abrir al iniciar sesión — \(why)", #selector(quit), enabled: false))
+            menu.addItem(item(s.openAtLoginUnavailable(why), #selector(quit), enabled: false))
         }
 
         // Diagnóstico: sólo con ⌥ pulsada al abrir el menú.
@@ -163,27 +179,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // sólo interesa cuando algo va mal.
         if NSEvent.modifierFlags.contains(.option) {
             menu.addItem(.separator())
-            let head = NSMenuItem(title: "Diagnóstico", action: nil, keyEquivalent: "")
+            let head = NSMenuItem(title: s.diagnostics, action: nil, keyEquivalent: "")
             head.isEnabled = false
             menu.addItem(head)
 
             for line in [describe(state),
-                         "Pantallas externas utilizables: \(control.usableExternalCount)"] {
+                         s.usableExternals(control.usableExternalCount)] {
                 let info = NSMenuItem(title: "  \(line)", action: nil, keyEquivalent: "")
                 info.isEnabled = false
                 menu.addItem(info)
             }
 
-            menu.addItem(item("Abrir el registro", #selector(openLog), enabled: true))
-            let verbose = item("Registro detallado", #selector(toggleVerboseLog), enabled: true)
+            menu.addItem(item(s.openLog, #selector(openLog), enabled: true))
+            let verbose = item(s.verboseLog, #selector(toggleVerboseLog), enabled: true)
             verbose.state = DisplayControl.verboseLogging ? .on : .off
             menu.addItem(verbose)
-            menu.addItem(item("Forzar reactivación de todas las pantallas",
-                              #selector(turnOn), enabled: true))
+            menu.addItem(item(s.forceReenable, #selector(turnOn), enabled: true))
         }
 
         menu.addItem(.separator())
-        menu.addItem(item("Salir de PantallaOff", #selector(quit), enabled: true))
+        menu.addItem(item(s.quit, #selector(quit), enabled: true))
+
+        // Idioma DESPUÉS de Salir, como se pidió. (La convención de macOS pone
+        // Salir al final; aquí manda la petición.)
+        let langItem = NSMenuItem(title: s.languageMenu, action: nil, keyEquivalent: "")
+        let langMenu = NSMenu()
+        for lang in Lang.allCases {
+            let li = item(lang.displayName, #selector(chooseLanguage(_:)), enabled: true)
+            li.state = (L10n.current == lang) ? .on : .off
+            li.representedObject = lang.rawValue
+            langMenu.addItem(li)
+        }
+        langItem.submenu = langMenu
+        menu.addItem(langItem)
         return menu
     }
 
@@ -199,7 +227,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func turnOff() {
         control.turnOffBuiltIn { [weak self] result in
             if case .failure(let err) = result {
-                self?.alert("No se ha apagado la pantalla", err.localizedDescription)
+                self?.alert(L10n.t.alertTurnOffFailedTitle, err.localizedDescription)
             }
             self?.refresh()
         }
@@ -208,10 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func turnOn() {
         control.turnOnAll { [weak self] ok in
             if !ok {
-                self?.alert("Atención",
-                    "No se ha podido reactivar ninguna pantalla.\n\n"
-                    + "Ejecuta ~/rescue desde una terminal o por SSH. Si eso no "
-                    + "basta: ~/rescue --restore")
+                self?.alert(L10n.t.alertAttentionTitle, L10n.t.alertRescueFailed)
             }
             self?.refresh()
         }
@@ -220,8 +245,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func breakMirror() {
         control.breakMirror { [weak self] ok in
             if !ok {
-                self?.alert("No se ha podido romper el espejo",
-                    "Desactiva la duplicación desde Ajustes del Sistema → Pantallas.")
+                self?.alert(L10n.t.alertBreakMirrorFailedTitle,
+                            L10n.t.alertBreakMirrorFailedBody)
             }
             self?.refresh()
         }
@@ -231,7 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let turningOn = !KeepAwake.isOn
         if let problem = KeepAwake.set(enabled: turningOn,
                                        includeDisplay: KeepAwake.keepsDisplayOn) {
-            alert("Mantener despierto", problem)
+            alert(L10n.t.keepAwake, problem)
         } else {
             control.write("mantener despierto: \(turningOn ? "activado" : "desactivado")")
         }
@@ -241,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleKeepDisplay() {
         let turningOn = !KeepAwake.keepsDisplayOn
         if let problem = KeepAwake.adjustDisplay(turningOn) {
-            alert("Mantener la pantalla encendida", problem)
+            alert(L10n.t.alertKeepDisplayTitle, problem)
         } else {
             control.write("mantener pantalla encendida: \(turningOn ? "activado" : "desactivado")")
         }
@@ -251,10 +276,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleLoginItem() {
         let turningOn = !LoginItem.state.isOn
         if let problem = LoginItem.setEnabled(turningOn) {
-            alert("Arranque automático", problem)
+            alert(L10n.t.alertLoginItemTitle, problem)
         } else {
             control.write("arranque al iniciar sesión: \(turningOn ? "activado" : "desactivado")")
         }
+        refresh()
+    }
+
+    @objc private func toggleKeyboardLight() {
+        let turningOff = KeyboardLight.isOn
+        let ok = turningOff ? KeyboardLight.turnOff() : KeyboardLight.turnOn()
+        if ok {
+            control.write("luz del teclado: \(turningOff ? "apagada" : "encendida")")
+        } else {
+            alert(L10n.t.alertKeyboardTitle, L10n.t.keyboardLightFailed)
+        }
+        refresh()
+    }
+
+    @objc private func chooseLanguage(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let lang = Lang(rawValue: raw) else { return }
+        L10n.current = lang
+        control.write("idioma: \(raw)")
         refresh()
     }
 
@@ -291,10 +335,20 @@ extension AppDelegate: NSMenuDelegate {
     // Se reconstruye en cada apertura: el estado puede haber cambiado por el
     // watchdog, por un hot-plug o por el propio sistema.
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // Se puebla el menú vivo con los ítems frescos, SIN copiarlos.
+        // La versión anterior hacía item.copy() y re-asignaba el target sólo en
+        // el nivel superior: con el submenú de idioma, sus ítems se habrían
+        // quedado sin target. Como buildMenu() ya crea ítems nuevos en cada
+        // llamada, la copia no aportaba nada.
         menu.removeAllItems()
         for item in buildMenu().items {
-            menu.addItem(item.copy() as! NSMenuItem)
+            // item.menu, no item.parent: `parent` es el ítem que contiene un
+            // submenú y vale nil en el nivel superior, así que no protegía de
+            // nada. Hoy funciona porque el menú temporal ya está liberado
+            // cuando llegamos aquí, pero eso es un detalle de ARC, no una
+            // garantía. Con esto sí lo es.
+            item.menu?.removeItem(item)
+            menu.addItem(item)
         }
-        for item in menu.items { item.target = self }
     }
 }

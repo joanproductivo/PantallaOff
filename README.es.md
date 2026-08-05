@@ -26,10 +26,12 @@ devuelve.
 │  Apagar pantalla del MacBook         │  ← toda la idea es esto
 │  ──────────────────────────────────  │
 │  ☐ Mantener el Mac despierto         │
+│  ☐ Apagar luz del teclado            │
 │  ──────────────────────────────────  │
 │  ☐ Abrir al iniciar sesión           │
 │  ──────────────────────────────────  │
 │  Salir de PantallaOff                │
+│  Idioma / Language              ▶    │
 └──────────────────────────────────────┘
 ```
 
@@ -38,9 +40,12 @@ devuelve.
 - **Apagar y encender la pantalla interna** desde la barra de menú.
 - **Mantener el Mac despierto** — la mitad imprescindible de Amphetamine, en un interruptor.
   Y si quieres, mantener también la pantalla encendida.
+- **Apagar y encender la luz del teclado.** Sólo el interruptor: para graduarla ya están las
+  teclas de brillo. Al encenderla te devuelve tu ajuste de brillo automático.
 - **Abrir al iniciar sesión**, si te apetece.
-- **Nada más.** Sin temporizadores, sin disparadores, sin panel de control. Hace dos cosas
-  y las hace bien.
+- **Español e inglés**, conmutables desde el menú y al instante.
+- **Nada más.** Sin temporizadores, sin disparadores, sin panel de control. Cada interruptor
+  está a un clic.
 
 ## Instalación
 
@@ -70,7 +75,8 @@ Lo único que necesitas son las Herramientas de Línea de Comandos de Xcode. Si 
 instalador abre el instalador de Apple por ti y te dice que lo vuelvas a ejecutar después.
 Xcode completo no hace falta.
 
-Busca el icono de portátil en la barra de menú, junto al reloj.
+Busca el icono de portátil en la barra de menú, junto al reloj. La app sigue el idioma de
+tu sistema; para cambiarlo, usa **Idioma / Language** al final del menú.
 
 Para activar **Abrir al iniciar sesión**, la app tiene que estar en `/Applications`, que es
 justo donde la deja `make install`. Nunca vuelve a aplicar el apagado al arrancar: abrir
@@ -243,6 +249,8 @@ src/PantallaCore.{h,c}    el predicado de seguridad, mutación, estado, rescate 
 src/Bridge.h              expone el núcleo C a Swift
 src/DisplayControl.swift  watchdog, vigía IOKit, dead-man, registro
 src/KeepAwake.swift       mantener despierto (IOPMAssertion — API pública)
+src/KeyboardLight.swift   luz del teclado (CoreBrightness, privada)
+src/L10n.swift            cadenas en español e inglés
 src/LoginItem.swift       abrir al iniciar sesión (SMAppService)
 src/AppDelegate.swift     barra de menú
 tools/probe.c             sonda de solo lectura

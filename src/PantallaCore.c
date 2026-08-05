@@ -139,31 +139,39 @@ bool pc_builtin_is_mirror_master(CGDirectDisplayID builtin_id) {
     return false;
 }
 
-bool pc_can_disable_builtin(char *reason, size_t reason_len) {
+pc_deny_reason pc_can_disable_builtin_why(void) {
     CGDirectDisplayID builtin = pc_builtin_id();
 
-    if (pc_state_builtin_disabled()) {
-        snprintf(reason, reason_len, "La pantalla interna ya está apagada");
-        return false;
-    }
-    if (builtin == kCGNullDirectDisplay) {
-        snprintf(reason, reason_len, "No se encuentra la pantalla interna");
-        return false;
-    }
+    if (pc_state_builtin_disabled())        return PC_DENY_ALREADY_OFF;
+    if (builtin == kCGNullDirectDisplay)    return PC_DENY_NO_BUILTIN;
     /* El espejo se comprueba ANTES que la disponibilidad de externos: si la
      * interna es la fuente del espejo, su único externo es forzosamente su
      * esclavo y por tanto no cuenta como utilizable. Con el orden inverso el
      * usuario siempre leería "sin pantalla externa", que es un motivo
      * engañoso, en vez del motivo real y accionable. */
-    if (pc_builtin_is_mirror_master(builtin)) {
+    if (pc_builtin_is_mirror_master(builtin)) return PC_DENY_MIRROR_MASTER;
+    if (pc_usable_external_count() == 0)      return PC_DENY_NO_EXTERNAL;
+    return PC_DENY_OK;
+}
+
+bool pc_can_disable_builtin(char *reason, size_t reason_len) {
+    switch (pc_can_disable_builtin_why()) {
+    case PC_DENY_ALREADY_OFF:
+        snprintf(reason, reason_len, "La pantalla interna ya está apagada");
+        return false;
+    case PC_DENY_NO_BUILTIN:
+        snprintf(reason, reason_len, "No se encuentra la pantalla interna");
+        return false;
+    case PC_DENY_MIRROR_MASTER:
         snprintf(reason, reason_len,
                  "La pantalla interna es la fuente del espejo: rompe el espejo primero");
         return false;
-    }
-    if (pc_usable_external_count() == 0) {
+    case PC_DENY_NO_EXTERNAL:
         snprintf(reason, reason_len,
                  "Sin pantalla externa utilizable (desconectada, dormida o virtual)");
         return false;
+    case PC_DENY_OK:
+        break;
     }
     snprintf(reason, reason_len, "OK");
     return true;

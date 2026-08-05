@@ -17,6 +17,14 @@ if CommandLine.arguments.contains("--login-item-diag") {
     exit(0)
 }
 
+if CommandLine.arguments.contains("--kb-diag") {
+    print("idioma actual: \(L10n.current.rawValue) (sistema: \(L10n.systemDefault.rawValue))")
+    print("teclado disponible: \(KeyboardLight.available)")
+    print("encendida: \(KeyboardLight.isOn)")
+    print(KeyboardLight.diagnosticReport())
+    exit(0)
+}
+
 // .accessory = sin icono en el Dock. Se hace en código y no sólo con
 // LSUIElement en el Info.plist para que el binario también funcione
 // correctamente sin empaquetar (durante el desarrollo).
