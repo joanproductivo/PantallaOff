@@ -31,6 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private var refs = MenuRefs()
 
+    /// El menú del NSStatusItem se crea una vez y vive todo el proceso, así que
+    /// `refs.menu` sigue apuntando a algo aunque esté cerrado. Sin este flag,
+    /// syncOpenMenu re-etiquetaba un menú que nadie está mirando. No es caro
+    /// (refresh() sólo se dispara al hacer clic o al cambiar el estado de las
+    /// pantallas, no periódicamente), pero es trabajo sin destinatario.
+    private var menuIsOpen = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.menu = NSMenu()
@@ -295,7 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// se mutan in situ — reconstruir el menú entero con él abierto cancelaría
     /// el tracking.
     private func syncOpenMenu() {
-        guard refs.menu != nil else { return }
+        guard menuIsOpen, refs.menu != nil else { return }
         let s = L10n.t
         let state = control.builtInState()
 
@@ -494,5 +501,14 @@ extension AppDelegate: NSMenuDelegate {
         }
         // Las referencias apuntan al menú vivo, no al temporal ya vaciado.
         refs.menu = menu
+    }
+
+    func menuWillOpen(_ menu: NSMenu) { menuIsOpen = true }
+
+    func menuDidClose(_ menu: NSMenu) {
+        menuIsOpen = false
+        // El menú cerrado ya no necesita mantenerse al día; la próxima apertura
+        // lo reconstruye entero desde cero en menuNeedsUpdate.
+        refs = MenuRefs()
     }
 }
