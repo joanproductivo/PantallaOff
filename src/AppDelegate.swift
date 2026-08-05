@@ -100,18 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         let state = control.builtInState()
 
-        let header = NSMenuItem(title: describe(state), action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        menu.addItem(header)
-
-        let externals = control.usableExternalCount
-        let sub = NSMenuItem(
-            title: "Pantallas externas utilizables: \(externals)",
-            action: nil, keyEquivalent: "")
-        sub.isEnabled = false
-        menu.addItem(sub)
-        menu.addItem(.separator())
-
+        // El menú empieza directamente por la acción. El estado no hace falta
+        // escribirlo: el propio interruptor ya dice si toca apagar o encender,
+        // y cuando no se puede, lo dice con el motivo. Lo demás va a
+        // Diagnóstico, bajo ⌥.
         if state == .offByUs {
             menu.addItem(item("Encender pantalla del MacBook",
                               #selector(turnOn), enabled: true))
@@ -173,6 +165,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let head = NSMenuItem(title: "Diagnóstico", action: nil, keyEquivalent: "")
             head.isEnabled = false
             menu.addItem(head)
+
+            for line in [describe(state),
+                         "Pantallas externas utilizables: \(control.usableExternalCount)"] {
+                let info = NSMenuItem(title: "  \(line)", action: nil, keyEquivalent: "")
+                info.isEnabled = false
+                menu.addItem(info)
+            }
+
             menu.addItem(item("Abrir el registro", #selector(openLog), enabled: true))
             let verbose = item("Registro detallado", #selector(toggleVerboseLog), enabled: true)
             verbose.state = DisplayControl.verboseLogging ? .on : .off
