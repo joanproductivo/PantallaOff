@@ -104,7 +104,7 @@ final class DisplayControl {
         // no se muta: es la única capa que sobrevive a un SIGKILL mientras el
         // experimento de kCGConfigureForAppOnly siga sin confirmar.
         guard armDeadman() else {
-            write("no se pudo armar el dead-man; no se apaga nada")
+            writeProblem("no se pudo armar el dead-man; no se apaga nada")
             return .failure(.deadmanUnavailable)
         }
 
@@ -120,7 +120,7 @@ final class DisplayControl {
         guard err == .success else {
             pc_state_remove(id)
             _ = disarmDeadman()
-            write("fallo al desactivar \(id): CGError \(err.rawValue)")
+            writeProblem("fallo al desactivar \(id): CGError \(err.rawValue)")
             return .failure(.cgError(err))
         }
 
@@ -129,7 +129,7 @@ final class DisplayControl {
         // que desarmaríamos la red con el usuario ya a ciegas.
         Thread.sleep(forTimeInterval: 0.6)
         if usableExternalCount == 0 {
-            write("post-condición fallida: sin externo utilizable, revirtiendo")
+            writeProblem("post-condición fallida: sin externo utilizable, revirtiendo")
             _ = turnOnAllSync()
             return .failure(.postconditionFailed)
         }
@@ -169,7 +169,7 @@ final class DisplayControl {
         if r.stranded {
             if strandedSince == nil {
                 strandedSince = Date()
-                write("*** SIN SALIDA POR SOFTWARE *** No queda ninguna pantalla activa y "
+                writeProblem("*** SIN SALIDA POR SOFTWARE *** No queda ninguna pantalla activa y "
                       + "CGSConfigureDisplayEnabled no puede completarse en ese estado. "
                       + "Reconecta el monitor externo (la interna volverá sola) o reinicia. "
                       + "Se dejan de hacer reintentos hasta que haya alguna pantalla.")
@@ -282,7 +282,7 @@ final class DisplayControl {
 
     private func startIOKitWatcher() {
         guard let port = IONotificationPortCreate(kIOMainPortDefault) else {
-            write("vigía IOKit: no se pudo crear el puerto de notificaciones")
+            writeProblem("vigía IOKit: no se pudo crear el puerto de notificaciones")
             return
         }
         ioNotifyPort = port
@@ -299,7 +299,7 @@ final class DisplayControl {
             },
             refcon, &ioTerminatedIter)
         guard kr == KERN_SUCCESS else {
-            write("vigía IOKit: AddMatchingNotification falló (\(kr))")
+            writeProblem("vigía IOKit: AddMatchingNotification falló (\(kr))")
             return
         }
         // Armar la notificación: hay que drenar el iterador inicial.
@@ -492,7 +492,7 @@ final class DisplayControl {
         // reaparezca alguna pantalla activa.
         if strandedSince != nil && activeDisplayCount() == 0 { return }
 
-        write("watchdog (\(trigger)): sin externo utilizable con algo apagado -> reactivando")
+        writeProblem("watchdog (\(trigger)): sin externo utilizable con algo apagado -> reactivando")
         _ = turnOnAllSync()
     }
 
@@ -527,7 +527,7 @@ final class DisplayControl {
     @discardableResult
     private func runRescue(_ args: [String]) -> Bool {
         guard let url = rescueURL else {
-            write("AVISO: no encuentro el binario 'rescue' (dead-man no disponible)")
+            writeProblem("AVISO: no encuentro el binario 'rescue' (dead-man no disponible)")
             return false
         }
         let p = Process()
@@ -552,7 +552,7 @@ final class DisplayControl {
         guard let text = try? String(contentsOf: pidFile, encoding: .utf8),
               let pid = Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)),
               kill(pid, 0) == 0 else {
-            write("AVISO: el dead-man no quedó vivo tras armarlo")
+            writeProblem("AVISO: el dead-man no quedó vivo tras armarlo")
             return false
         }
         return true
@@ -571,12 +571,54 @@ final class DisplayControl {
         set { UserDefaults.standard.set(newValue, forKey: "verboseLogging") }
     }
 
+    /// Últimos eventos, sólo en memoria. En marcha normal no se escribe nada en
+    /// disco: si nunca pasa nada raro, el fichero de registro ni se crea.
+    ///
+    /// Pero cuando algo va mal, lo que hace falta no es el error suelto sino
+    /// los minutos anteriores — así fue como se resolvió lo del cable. Por eso
+    /// el búfer se vuelca junto con la anomalía en el momento en que ocurre.
+    private var ring: [String] = []
+    private let ringCapacity = 200
+    private let ringLock = NSLock()
+
+    /// Evento normal: a memoria. Sólo llega a disco si luego pasa algo, o si el
+    /// registro detallado está activado.
     func write(_ message: String) {
         log.info("\(message, privacy: .public)")
-        // Se escribe por el mismo camino que usan las herramientas C, para que
-        // app y dead-man compartan un único registro cronológico.
-        pc_log_str(message)
+
+        ringLock.lock()
+        ring.append("\(Self.stamp()) \(message)")
+        if ring.count > ringCapacity { ring.removeFirst(ring.count - ringCapacity) }
+        ringLock.unlock()
+
+        if Self.verboseLogging { pc_log_str(message) }
     }
+
+    /// Anomalía: esto sí va a disco siempre, precedido del contexto reciente.
+    /// Reservado para lo que de verdad merece una investigación — rescates que
+    /// fallan, quedarse sin salida, errores de CoreGraphics, el dead-man.
+    func writeProblem(_ message: String) {
+        log.error("\(message, privacy: .public)")
+
+        ringLock.lock()
+        let context = ring
+        ring.removeAll()
+        ringLock.unlock()
+
+        if !Self.verboseLogging && !context.isEmpty {
+            pc_log_str("--- contexto previo (\(context.count) eventos en memoria) ---")
+            for line in context { pc_log_str("  \(line)") }
+            pc_log_str("--- fin del contexto ---")
+        }
+        pc_log_str("PROBLEMA: \(message)")
+    }
+
+    private static func stamp() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: Date())
+    }
+
 }
 
 enum PantallaError: Error {

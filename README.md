@@ -209,13 +209,17 @@ blind. It does nothing at all when there's nothing to rescue.
 | `~/rescue --restore` | Forces a full display-configuration restore. |
 | `~/rescue --last-resort` | Restarts the graphics session (logout, not reboot). |
 
-The app keeps a log at `~/Library/Logs/PantallaOff.log` (⌥ + menu → *Open the log*) . It records real events
-only — switching displays, rescues, errors — which is a handful of lines a day. It rotates at
-128 KB, so it can't grow without bound.
+**The log stays empty.** In normal operation PantallaOff writes nothing to disk — the log file
+isn't even created. Events are kept in a 200-entry in-memory buffer instead.
 
-If you're chasing something, ⌥ + menu → *Registro detallado* adds a heartbeat every 30 seconds
-while a display is off, so silence stops being a possible result. Off by default: with a
-screen turned off all day it wrote about a thousand lines.
+That buffer only reaches disk when something actually goes wrong: a failed rescue, a
+CoreGraphics error, the dead-man firing. Then it's flushed *along with* the preceding events,
+because when you're debugging a black screen what you need isn't the error on its own, it's
+the minutes before it. That's precisely how the zombie was found.
+
+If you're actively investigating, ⌥ + menu → *Registro detallado* writes everything live,
+including a heartbeat every 30 seconds while a display is off. Off by default. Either way the
+file rotates at 128 KB, so it can never grow without bound.
 
 ---
 

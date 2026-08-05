@@ -16,7 +16,7 @@ CORE_SRC   = src/PantallaCore.c
 CORE_OBJ   = $(BIN)/PantallaCore.o
 SWIFT_SRC  = src/DisplayControl.swift src/LoginItem.swift src/KeepAwake.swift src/AppDelegate.swift src/main.swift
 
-.PHONY: all tools app bundle sign install uninstall clean probe status help rescue selftest
+.PHONY: all tools app bundle sign install uninstall clean probe status help rescue selftest icon
 
 help:
 	@echo "PantallaOff — objetivos disponibles:"
@@ -55,7 +55,7 @@ $(BIN)/$(APP): $(SWIFT_SRC) $(CORE_OBJ) src/Bridge.h | $(BIN)
 	$(SWIFTC) $(SWIFTFLAGS) $(SWIFT_SRC) $(CORE_OBJ) \
 	    -framework AppKit -framework ServiceManagement $(FRAMEWORKS) -o $@
 
-bundle: $(BIN)/$(APP) $(BIN)/rescue resources/Info.plist
+bundle: $(BIN)/$(APP) $(BIN)/rescue resources/Info.plist resources/AppIcon.icns
 	@rm -rf $(BUNDLE)
 	@mkdir -p $(BUNDLE)/Contents/MacOS $(BUNDLE)/Contents/Resources
 	@cp resources/Info.plist $(BUNDLE)/Contents/Info.plist
@@ -63,6 +63,7 @@ bundle: $(BIN)/$(APP) $(BIN)/rescue resources/Info.plist
 	@# rescue viaja DENTRO del bundle: el dead-man debe existir allá donde
 	@# esté la app, no depender de que ~/rescue esté instalado.
 	@cp $(BIN)/rescue $(BUNDLE)/Contents/MacOS/rescue
+	@cp resources/AppIcon.icns $(BUNDLE)/Contents/Resources/AppIcon.icns
 	@$(MAKE) --no-print-directory sign
 	@echo "bundle listo: $(BUNDLE)"
 
@@ -102,3 +103,10 @@ clean:
 # Alias con nombre, para poder hacer "make rescue" y "make selftest".
 rescue: $(BIN)/rescue
 selftest: $(BIN)/selftest
+
+# El icono se dibuja por código: se versiona como fuente, no como binario opaco.
+icon:
+	swift tools/make-icon.swift resources/AppIcon.icns
+
+resources/AppIcon.icns: tools/make-icon.swift
+	swift tools/make-icon.swift $@

@@ -217,13 +217,17 @@ poder teclearla a ciegas. No hace absolutamente nada cuando no hay nada que resc
 | `~/rescue --restore` | Fuerza una restauración completa de la configuración de pantallas. |
 | `~/rescue --last-resort` | Reinicia la sesión gráfica (cierre de sesión, no reinicio). |
 
-La app mantiene un registro en `~/Library/Logs/PantallaOff.log` (⌥ + menú → *Abrir el registro*). Anota sólo eventos reales —apagar
-y encender pantallas, rescates, errores—, que son un puñado de líneas al día. Rota a los
-128 KB, así que no puede crecer sin freno.
+**El registro se queda vacío.** En marcha normal PantallaOff no escribe nada en disco — el
+fichero ni se crea. Los eventos se guardan en un búfer en memoria de 200 entradas.
 
-Si estás investigando algo, ⌥ + menú → *Registro detallado* añade un latido cada 30 segundos
-mientras haya una pantalla apagada, para que el silencio deje de ser un resultado posible.
-Desactivado por defecto: con una pantalla apagada todo el día escribía unas mil líneas.
+Ese búfer sólo llega al disco cuando algo va mal de verdad: un rescate que falla, un error de
+CoreGraphics, el dead-man disparando. Y entonces se vuelca *junto con* los eventos anteriores,
+porque cuando investigas una pantalla en negro lo que necesitas no es el error suelto, son los
+minutos previos. Así es exactamente como se encontró el zombi.
+
+Si estás investigando algo, ⌥ + menú → *Registro detallado* lo escribe todo en directo,
+incluido un latido cada 30 segundos mientras haya una pantalla apagada. Desactivado por
+defecto. En cualquier caso el fichero rota a los 128 KB, así que nunca puede crecer sin freno.
 
 ---
 
