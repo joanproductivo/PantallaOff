@@ -461,9 +461,16 @@ final class DisplayControl {
         let usable = usableExternalCount
         snap += " usables=\(usable)"
 
-        if snap != heartbeatSnapshot || Date().timeIntervalSince(heartbeatLast) > 30 {
+        // Un cambio real se registra siempre: son escasos y valen su línea.
+        // El latido periódico —que existía para demostrar que la app no estaba
+        // muda durante la caza del zombi— sólo en modo detallado: con una
+        // pantalla apagada todo el día generaba ~1.000 líneas diarias.
+        if snap != heartbeatSnapshot {
             write("estado (\(trigger)): \(snap)")
             heartbeatSnapshot = snap
+            heartbeatLast = Date()
+        } else if Self.verboseLogging, Date().timeIntervalSince(heartbeatLast) > 30 {
+            write("latido (\(trigger)): \(snap)")
             heartbeatLast = Date()
         }
 
@@ -554,6 +561,15 @@ final class DisplayControl {
     private func disarmDeadman() -> Bool { runRescue(["--disarm"]) }
 
     // MARK: - Log
+
+    /// Registro detallado: añade un latido cada 30 s mientras haya una pantalla
+    /// apagada, para poder distinguir "no pasó nada" de "la app estaba muerta".
+    /// Desactivado por defecto; se enciende desde ⌥ → Diagnóstico cuando hay
+    /// algo que investigar. El fichero rota solo a los 128 KB en cualquier caso.
+    static var verboseLogging: Bool {
+        get { UserDefaults.standard.bool(forKey: "verboseLogging") }
+        set { UserDefaults.standard.set(newValue, forKey: "verboseLogging") }
+    }
 
     func write(_ message: String) {
         log.info("\(message, privacy: .public)")

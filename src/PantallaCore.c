@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 
 /* ===========================================================================
@@ -456,9 +457,25 @@ pc_rescue_result pc_rescue(void) { return pc_rescue_ex(false); }
  * Utilidades
  * ======================================================================== */
 
+/* Rotación simple: al pasar de PC_LOG_MAX_BYTES, el fichero actual pasa a .1 y
+ * se empieza de cero. Dos ficheros son suficientes — esto es un registro de
+ * diagnóstico, no un histórico. El tope garantiza que nunca crezca sin freno. */
+#define PC_LOG_MAX_BYTES (128 * 1024)
+
+static void pc_log_rotate_if_needed(const char *path) {
+    struct stat st;
+    if (stat(path, &st) != 0) return;
+    if (st.st_size < PC_LOG_MAX_BYTES) return;
+
+    char previous[1200];
+    snprintf(previous, sizeof previous, "%s.1", path);
+    rename(path, previous);
+}
+
 void pc_log(const char *fmt, ...) {
     char path[1024];
     if (!pc_home_path("Library/Logs/PantallaOff.log", path, sizeof path)) return;
+    pc_log_rotate_if_needed(path);
     FILE *f = fopen(path, "a");
     if (!f) return;
 

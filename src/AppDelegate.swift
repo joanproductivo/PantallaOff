@@ -174,6 +174,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             head.isEnabled = false
             menu.addItem(head)
             menu.addItem(item("Abrir el registro", #selector(openLog), enabled: true))
+            let verbose = item("Registro detallado", #selector(toggleVerboseLog), enabled: true)
+            verbose.state = DisplayControl.verboseLogging ? .on : .off
+            menu.addItem(verbose)
             menu.addItem(item("Forzar reactivación de todas las pantallas",
                               #selector(turnOn), enabled: true))
         }
@@ -257,6 +260,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openLoginItemsSettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!
         NSWorkspace.shared.open(url)
+    }
+
+    @objc private func toggleVerboseLog() {
+        DisplayControl.verboseLogging.toggle()
+        control.write("registro detallado: \(DisplayControl.verboseLogging ? "activado" : "desactivado")")
+        refresh()
     }
 
     @objc private func openLog() {

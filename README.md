@@ -209,8 +209,13 @@ blind. It does nothing at all when there's nothing to rescue.
 | `~/rescue --restore` | Forces a full display-configuration restore. |
 | `~/rescue --last-resort` | Restarts the graphics session (logout, not reboot). |
 
-The app logs everything to `~/Library/Logs/PantallaOff.log` (⌥ + menu → *Open the log*) — while a display is off it
-records every change plus a heartbeat every 30 seconds, so silence is never a possible result.
+The app keeps a log at `~/Library/Logs/PantallaOff.log` (⌥ + menu → *Open the log*) . It records real events
+only — switching displays, rescues, errors — which is a handful of lines a day. It rotates at
+128 KB, so it can't grow without bound.
+
+If you're chasing something, ⌥ + menu → *Registro detallado* adds a heartbeat every 30 seconds
+while a display is off, so silence stops being a possible result. Off by default: with a
+screen turned off all day it wrote about a thousand lines.
 
 ---
 

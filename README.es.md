@@ -217,9 +217,13 @@ poder teclearla a ciegas. No hace absolutamente nada cuando no hay nada que resc
 | `~/rescue --restore` | Fuerza una restauración completa de la configuración de pantallas. |
 | `~/rescue --last-resort` | Reinicia la sesión gráfica (cierre de sesión, no reinicio). |
 
-La app registra todo en `~/Library/Logs/PantallaOff.log` (⌥ + menú → *Abrir el registro*) — mientras hay una pantalla apagada
-anota cada cambio más un latido cada 30 segundos, de modo que el silencio nunca es un
-resultado posible.
+La app mantiene un registro en `~/Library/Logs/PantallaOff.log` (⌥ + menú → *Abrir el registro*). Anota sólo eventos reales —apagar
+y encender pantallas, rescates, errores—, que son un puñado de líneas al día. Rota a los
+128 KB, así que no puede crecer sin freno.
+
+Si estás investigando algo, ⌥ + menú → *Registro detallado* añade un latido cada 30 segundos
+mientras haya una pantalla apagada, para que el silencio deje de ser un resultado posible.
+Desactivado por defecto: con una pantalla apagada todo el día escribía unas mil líneas.
 
 ---
 
