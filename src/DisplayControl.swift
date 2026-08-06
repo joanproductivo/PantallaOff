@@ -534,8 +534,21 @@ final class DisplayControl {
                 usleep(300_000)
             }
             if err == .success {
-                pc_state_remove(e.id)
-                notifyChange()
+                // El ancla sólo se borra si la interna VOLVIÓ de verdad: el
+                // enable puede aterrizar en el vacío (MEDIDO, incidente
+                // 2026-08-06: «enable(1) intento 1 -> CGError 0» sin que el
+                // panel volviera). Mismo criterio que pc_rescue: verla
+                // online. Si no está, la entrada se conserva y el rescate y
+                // el watchdog siguen teniendo ancla.
+                var online = [CGDirectDisplayID](repeating: 0, count: Int(PC_MAX_DISPLAYS))
+                var no: UInt32 = 0
+                if CGGetOnlineDisplayList(UInt32(PC_MAX_DISPLAYS), &online, &no) == .success,
+                   online.prefix(Int(no)).contains(e.id) {
+                    pc_state_remove(e.id)
+                    notifyChange()
+                } else {
+                    pc_log_str("enable aceptado pero \(e.id) no está online; se conserva el ancla")
+                }
             }
         }
     }
