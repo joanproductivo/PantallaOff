@@ -53,7 +53,30 @@ you were running a single display. Windows stop wandering there. One click bring
 
 ## Install
 
-**Without touching the terminal:**
+### Option 1 — download the ready-made app (fastest)
+
+1. Open [**Releases**](https://github.com/joanproductivo/PantallaOff/releases/latest) and
+   download `PantallaOff-<version>.zip`.
+2. **Double-click the zip in Finder** to unzip it, then drag `PantallaOff.app` into your
+   **Applications** folder.
+3. First launch: **right-click** the app → **Open**. macOS will say it can't verify the
+   developer. On macOS 15 (Sequoia) and later that dialog gives you no way through — once it
+   has appeared, go to **System Settings → Privacy & Security**, scroll to the bottom and
+   click **Open Anyway**.
+
+That warning is unavoidable and honest: the app is **signed ad-hoc**, not notarised by Apple —
+notarising requires a paid developer account, and this is a free MIT project. If you'd rather
+not trust someone else's binary, build it yourself with option 2 or 3; you get the same app.
+
+This route doesn't create `~/rescue`. The app carries its own copy of the rescue tool inside
+the bundle, so every safety net works regardless — but if you want the short path you can type
+blind, or over SSH:
+
+```bash
+cp /Applications/PantallaOff.app/Contents/MacOS/rescue ~/rescue
+```
+
+### Option 2 — build it yourself, without touching the terminal
 
 1. [**Download the project**](https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip)
    and unzip it.
@@ -64,25 +87,25 @@ you were running a single display. Windows stop wandering there. One click bring
 > quarantined by macOS, and that's the standard way to authorise it the first time. If you
 > cloned with `git` instead, a plain double-click works.
 
-**If you live in the terminal:**
+### Option 3 — build it yourself, from the terminal
 
 ```bash
 git clone https://github.com/joanproductivo/PantallaOff.git
 cd PantallaOff && make install && open /Applications/PantallaOff.app
 ```
 
-Either way you get `/Applications/PantallaOff.app` and a small rescue tool at `~/rescue`.
-The app itself never triggers a Gatekeeper warning: you compiled it, so it carries no
-quarantine flag.
+Options 2 and 3 give you `/Applications/PantallaOff.app` *and* the rescue tool at `~/rescue`,
+and the app they produce never triggers a Gatekeeper warning at all: you compiled it, so it
+carries no quarantine flag. Their only requirement is the Xcode Command Line Tools — if
+they're missing, the installer opens Apple's installer for you and tells you to run it again
+afterwards. No Xcode needed.
 
-The only requirement is the Xcode Command Line Tools. If they're missing, the installer opens
-Apple's installer for you and tells you to run it again afterwards. No Xcode needed.
+Whichever route you took, look for the laptop icon in the menu bar, next to the clock. The app
+follows your system language; to change it, use **Idioma / Language** at the bottom of the
+menu.
 
-Look for the laptop icon in the menu bar, next to the clock. The app follows your system
-language; to change it, use **Idioma / Language** at the bottom of the menu.
-
-To enable **Open at login**, the app must live in `/Applications`, which is where
-`make install` puts it.
+To enable **Open at login**, the app must live in `/Applications` — which is where all three
+routes put it.
 
 **Your setup survives sleep and reboots.** If the built-in display was off when the Mac went
 to sleep or shut down, PantallaOff turns it off again after wake or startup — but only once a
@@ -220,7 +243,10 @@ Worst case: hold the power button. The configuration is never permanent, so a re
 restores the display.
 
 **The `~/rescue` tool** is a standalone binary, deliberately at a short path so you can type it
-blind. It does nothing at all when there's nothing to rescue.
+blind. It does nothing at all when there's nothing to rescue. If you installed from Releases
+(option 1) it isn't at `~/rescue` yet — the same binary lives at
+`/Applications/PantallaOff.app/Contents/MacOS/rescue`, and copying it to `~/rescue` takes one
+command.
 
 | Command | What it does |
 |---|---|

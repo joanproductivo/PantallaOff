@@ -17,11 +17,18 @@ bilingüe (ver *Idioma* más abajo); los README están en inglés (`README.md`) 
 make            # ayuda con todos los objetivos
 make all        # herramientas + app + bundle firmado ad-hoc
 make install    # instala /Applications/PantallaOff.app y ~/rescue
+make release    # build/PantallaOff-<versión>.zip para GitHub Releases
 make probe      # SOLO LECTURA: qué ve CoreGraphics ahora mismo
 make status     # estado de pantallas + dead-man (solo lectura)
 make icon       # regenera resources/AppIcon.icns desde tools/make-icon.swift
 make clean
 ```
+
+El zip de release se empaqueta **siempre con `ditto --sequesterRsrc`, nunca con `zip`**:
+`zip` deja ficheros AppleDouble (`._Contents`, `._PantallaOff`…) DENTRO del bundle y eso rompe
+el sello de la firma — quien descomprima con `unzip` desde la terminal recibe una app «dañada»
+que macOS se niega a abrir (medido: la release 1.2.1 salió así y hubo que rehacerla). `make
+release` valida el paquete descomprimiéndolo y verificando la firma antes de darlo por bueno.
 
 Diagnósticos que no abren interfaz. `--kb-diag` es de solo lectura; `--login-item-diag`
 **registra y restaura** el estado previo del arranque (y con `requiresApproval` o «no

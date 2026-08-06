@@ -55,7 +55,30 @@ devuelve.
 
 ## Instalación
 
-**Sin tocar la terminal:**
+### Opción 1 — descargar la app ya compilada (lo más rápido)
+
+1. Entra en [**Releases**](https://github.com/joanproductivo/PantallaOff/releases/latest) y
+   descarga `PantallaOff-<versión>.zip`.
+2. **Doble clic en el zip desde el Finder** para descomprimirlo y arrastra `PantallaOff.app`
+   a tu carpeta **Aplicaciones**.
+3. Primer arranque: **clic derecho** en la app → **Abrir**. macOS dirá que no puede verificar
+   al desarrollador. En macOS 15 (Sequoia) y posteriores ese diálogo ya no te deja continuar:
+   una vez que ha aparecido, ve a **Ajustes del Sistema → Privacidad y seguridad**, baja del
+   todo y pulsa **Abrir igualmente**.
+
+El aviso es inevitable y honesto: la app está **firmada ad-hoc**, no notarizada por Apple —
+notarizar exige una cuenta de desarrollador de pago, y esto es un proyecto MIT gratuito. Si
+prefieres no fiarte del binario de otro, compílala tú con la opción 2 o la 3: sale la misma app.
+
+Esta vía no crea `~/rescue`. La app lleva su propia copia de la herramienta de rescate dentro
+del bundle, así que todas las redes de seguridad funcionan igual — pero si quieres la ruta
+corta, la que puedes teclear a ciegas o por SSH:
+
+```bash
+cp /Applications/PantallaOff.app/Contents/MacOS/rescue ~/rescue
+```
+
+### Opción 2 — compilarla tú, sin tocar la terminal
 
 1. [**Descarga el proyecto**](https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip)
    y descomprímelo.
@@ -66,26 +89,24 @@ devuelve.
 > internet, y ésa es la forma estándar de autorizarlo la primera vez. Si lo clonaste con
 > `git`, el doble clic funciona directamente.
 
-**Si vives en la terminal:**
+### Opción 3 — compilarla tú, desde la terminal
 
 ```bash
 git clone https://github.com/joanproductivo/PantallaOff.git
 cd PantallaOff && make install && open /Applications/PantallaOff.app
 ```
 
-Por cualquiera de las dos vías acabas con `/Applications/PantallaOff.app` y una pequeña
-herramienta de rescate en `~/rescue`. La app en sí nunca provoca un aviso de Gatekeeper: la
-has compilado tú, así que no lleva la marca de cuarentena.
+Las opciones 2 y 3 te dejan `/Applications/PantallaOff.app` *y* la herramienta de rescate en
+`~/rescue`, y la app que producen no provoca ningún aviso de Gatekeeper: la has compilado tú,
+así que no lleva la marca de cuarentena. Lo único que necesitan son las Herramientas de Línea
+de Comandos de Xcode: si te faltan, el instalador abre el instalador de Apple por ti y te dice
+que lo vuelvas a ejecutar después. Xcode completo no hace falta.
 
-Lo único que necesitas son las Herramientas de Línea de Comandos de Xcode. Si te faltan, el
-instalador abre el instalador de Apple por ti y te dice que lo vuelvas a ejecutar después.
-Xcode completo no hace falta.
-
-Busca el icono de portátil en la barra de menú, junto al reloj. La app sigue el idioma de
-tu sistema; para cambiarlo, usa **Idioma / Language** al final del menú.
+Sea cual sea la vía, busca el icono de portátil en la barra de menú, junto al reloj. La app
+sigue el idioma de tu sistema; para cambiarlo, usa **Idioma / Language** al final del menú.
 
 Para activar **Abrir al iniciar sesión**, la app tiene que estar en `/Applications`, que es
-justo donde la deja `make install`.
+donde la dejan las tres vías.
 
 **Tu configuración sobrevive al reposo y a los reinicios.** Si la interna estaba apagada al
 dormir o apagar el Mac, PantallaOff la vuelve a apagar tras despertar o arrancar — sólo
@@ -230,7 +251,10 @@ En el peor caso: mantén pulsado el botón de encendido. La configuración nunca
 así que un reinicio siempre devuelve la pantalla.
 
 **La herramienta `~/rescue`** es un binario independiente, en una ruta corta a propósito para
-poder teclearla a ciegas. No hace absolutamente nada cuando no hay nada que rescatar.
+poder teclearla a ciegas. No hace absolutamente nada cuando no hay nada que rescatar. Si
+instalaste desde Releases (opción 1) todavía no está en `~/rescue`: el mismo binario vive en
+`/Applications/PantallaOff.app/Contents/MacOS/rescue`, y copiarlo a `~/rescue` es un solo
+comando.
 
 | Comando | Qué hace |
 |---|---|

@@ -1,6 +1,8 @@
 APP        = PantallaOff
 BUNDLE     = build/$(APP).app
 BIN        = build
+VERSION   := $(shell /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' resources/Info.plist)
+ZIP        = $(BIN)/$(APP)-$(VERSION).zip
 SDK       := $(shell xcrun --show-sdk-path)
 TARGET     = arm64-apple-macos13.0
 
@@ -18,13 +20,14 @@ SWIFT_SRC  = src/L10n.swift src/MenuRow.swift src/DisplayControl.swift src/Login
              src/KeepAwake.swift src/KeyboardLight.swift src/LidSleep.swift \
              src/AppDelegate.swift src/main.swift
 
-.PHONY: all tools app bundle sign install uninstall clean probe status help rescue selftest icon
+.PHONY: all tools app bundle sign install uninstall clean probe status help rescue selftest icon release
 
 help:
 	@echo "PantallaOff — objetivos disponibles:"
 	@echo "  make tools     compila probe, rescue y selftest en ./build"
 	@echo "  make all       tools + la app + el bundle firmado"
 	@echo "  make install   instala ~/rescue y /Applications/$(APP).app"
+	@echo "  make release   empaqueta el zip firmado para GitHub Releases"
 	@echo "  make probe     ejecuta la sonda de SOLO LECTURA"
 	@echo "  make status    estado actual + dead-man (solo lectura)"
 	@echo "  make clean"
@@ -87,6 +90,24 @@ install: tools bundle
 	@echo ""
 	@echo "Comprueba AHORA que el rescate funciona por SSH, antes de apagar nada:"
 	@echo "  ssh $(USER)@<esta-mac> '~/rescue --status'"
+
+# Zip para GitHub Releases. SIEMPRE con ditto, NUNCA con `zip`: `zip` mete
+# ficheros AppleDouble (._Contents, ._PantallaOff…) DENTRO del bundle, y eso
+# rompe el sello de la firma — quien descomprima con `unzip` desde la terminal
+# se encuentra una app «dañada» que macOS se niega a abrir. Medido, no supuesto:
+# de ahí la comprobación de abajo, que valida el paquete tal y como lo recibirá
+# quien lo descargue.
+release: bundle
+	@rm -f $(ZIP)
+	@ditto -c -k --sequesterRsrc --keepParent $(BUNDLE) $(ZIP)
+	@rm -rf $(BIN)/.relcheck
+	@mkdir -p $(BIN)/.relcheck
+	@ditto -x -k $(ZIP) $(BIN)/.relcheck
+	@codesign --verify --deep --strict $(BIN)/.relcheck/$(APP).app
+	@test -z "$$(find $(BIN)/.relcheck -name '._*' -print -quit)" || \
+	    { echo "ERROR: el zip lleva ficheros AppleDouble dentro del bundle"; exit 1; }
+	@rm -rf $(BIN)/.relcheck
+	@echo "release lista: $(ZIP) (v$(VERSION), sello verificado tras descomprimir)"
 
 uninstall:
 	@rm -f $(HOME)/rescue
