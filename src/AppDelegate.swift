@@ -23,8 +23,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var diagHead: NSMenuItem?
         var diagState: NSMenuItem?
         var diagExternals: NSMenuItem?
+        var versionItem: NSMenuItem?
         var openLogItem: NSMenuItem?
         var forceItem: NSMenuItem?
+        /// Separador + ítems de la sección Diagnóstico, para conmutar su
+        /// isHidden en bloque mientras el menú está abierto (⌥ en vivo).
+        var diagItems: [NSMenuItem] = []
         var quitItem: NSMenuItem?
         var langItem: NSMenuItem?
         var langRows: [(Lang, StayOpenRow)] = []
@@ -37,6 +41,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// (refresh() sólo se dispara al hacer clic o al cambiar el estado de las
     /// pantallas, no periódicamente), pero es trabajo sin destinatario.
     private var menuIsOpen = false
+
+    /// Sondeo de ⌥ mientras el menú está abierto. MEDIDO (2026-08-06): un
+    /// monitor local de flagsChanged NO recibe eventos durante el tracking del
+    /// menú — AppKit los consume en su propio bucle — así que la única vía es
+    /// leer NSEvent.modifierFlags con un Timer en modo .eventTracking, que es
+    /// justo el modo en el que gira el run loop mientras el menú está abierto.
+    /// Vive FUERA de MenuRefs a propósito: menuDidClose resetea refs, y el
+    /// timer hay que invalidarlo explícitamente o seguiría disparando.
+    private var optionPoller: Timer?
+
+    /// Versión para la línea de Diagnóstico. El plist es la única fuente; un
+    /// binario suelto no tiene plist fiable y la línea se omite (mismo criterio
+    /// "sin bundle" que LoginItem: bundleIdentifier == nil).
+    private var bundleVersion: String? {
+        guard Bundle.main.bundleIdentifier != nil else { return nil }
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -219,40 +240,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             refs.loginPlainItem = li
         }
 
-        // Diagnóstico: sólo con ⌥ pulsada al abrir el menú.
-        if NSEvent.modifierFlags.contains(.option) {
-            menu.addItem(.separator())
-            let head = NSMenuItem(title: s.diagnostics, action: nil, keyEquivalent: "")
-            head.isEnabled = false
-            menu.addItem(head)
-            refs.diagHead = head
+        // Diagnóstico: la sección se construye SIEMPRE y sólo se ve mientras
+        // ⌥ esté pulsada — en vivo, no sólo al abrir: el sondeo de ⌥
+        // (menuWillOpen) conmuta el isHidden de estos ítems con el menú
+        // abierto, como hacen los menús de estado del sistema.
+        var diag: [NSMenuItem] = []
+        let diagSep = NSMenuItem.separator()
+        menu.addItem(diagSep)
+        diag.append(diagSep)
 
-            let dState = NSMenuItem(title: "  \(describe(state))", action: nil, keyEquivalent: "")
-            dState.isEnabled = false
-            menu.addItem(dState)
-            refs.diagState = dState
+        let head = NSMenuItem(title: s.diagnostics, action: nil, keyEquivalent: "")
+        head.isEnabled = false
+        menu.addItem(head)
+        refs.diagHead = head
+        diag.append(head)
 
-            let dExt = NSMenuItem(title: "  \(s.usableExternals(control.usableExternalCount))",
-                                  action: nil, keyEquivalent: "")
-            dExt.isEnabled = false
-            menu.addItem(dExt)
-            refs.diagExternals = dExt
+        let dState = NSMenuItem(title: "  \(describe(state))", action: nil, keyEquivalent: "")
+        dState.isEnabled = false
+        menu.addItem(dState)
+        refs.diagState = dState
+        diag.append(dState)
 
-            let ol = item(s.openLog, #selector(openLog), enabled: true)
-            menu.addItem(ol)
-            refs.openLogItem = ol
+        let dExt = NSMenuItem(title: "  \(s.usableExternals(control.usableExternalCount))",
+                              action: nil, keyEquivalent: "")
+        dExt.isEnabled = false
+        menu.addItem(dExt)
+        refs.diagExternals = dExt
+        diag.append(dExt)
 
-            let (vi, vRow) = stayOpenRow(title: s.verboseLog,
-                                         checked: DisplayControl.verboseLogging) { [weak self] in
-                self?.toggleVerboseLog()
-            }
-            menu.addItem(vi)
-            refs.verboseRow = vRow
-
-            let force = item(s.forceReenable, #selector(turnOn), enabled: true)
-            menu.addItem(force)
-            refs.forceItem = force
+        if let v = bundleVersion {
+            let ver = NSMenuItem(title: s.versionLine(v), action: nil, keyEquivalent: "")
+            ver.isEnabled = false
+            menu.addItem(ver)
+            refs.versionItem = ver
+            diag.append(ver)
         }
+
+        let ol = item(s.openLog, #selector(openLog), enabled: true)
+        menu.addItem(ol)
+        refs.openLogItem = ol
+        diag.append(ol)
+
+        let (vi, vRow) = stayOpenRow(title: s.verboseLog,
+                                     checked: DisplayControl.verboseLogging) { [weak self] in
+            self?.toggleVerboseLog()
+        }
+        menu.addItem(vi)
+        refs.verboseRow = vRow
+        diag.append(vi)
+
+        let force = item(s.forceReenable, #selector(turnOn), enabled: true)
+        menu.addItem(force)
+        refs.forceItem = force
+        diag.append(force)
+
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        for it in diag { it.isHidden = !optionDown }
+        refs.diagItems = diag
 
         menu.addItem(.separator())
         let quit = item(s.quit, #selector(quit), enabled: true)
@@ -348,6 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refs.diagHead?.title = s.diagnostics
         refs.diagState?.title = "  \(describe(state))"
         refs.diagExternals?.title = "  \(s.usableExternals(control.usableExternalCount))"
+        if let v = bundleVersion { refs.versionItem?.title = s.versionLine(v) }
         refs.openLogItem?.title = s.openLog
         refs.forceItem?.title = s.forceReenable
 
@@ -473,7 +518,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             a.messageText = title
             a.informativeText = message
             a.alertStyle = .warning
-            a.addButton(withTitle: "OK")
+            a.addButton(withTitle: L10n.t.alertOK)
+            // App .accessory: sin activarla, el alert nace DETRÁS de la app en
+            // primer plano y puede pasar desapercibido. La variante con
+            // ignoringOtherApps está deprecada desde macOS 14, pero el target
+            // es macOS 13 (ahí no hay warning) y es la única que existe en 13.
+            NSApp.activate(ignoringOtherApps: true)
             a.runModal()
         }
         // Siempre, sin intentar adivinar si el menú está en tracking: cancelar
@@ -503,10 +553,30 @@ extension AppDelegate: NSMenuDelegate {
         refs.menu = menu
     }
 
-    func menuWillOpen(_ menu: NSMenu) { menuIsOpen = true }
+    func menuWillOpen(_ menu: NSMenu) {
+        menuIsOpen = true
+        // ⌥ en vivo: mientras el menú esté abierto, pulsar o soltar ⌥ muestra
+        // u oculta la sección Diagnóstico al momento. AppKit empareja
+        // menuWillOpen/menuDidClose, pero si una apertura llegara con el
+        // sondeo vivo, se invalida antes de crear otro (nunca dos a la vez).
+        optionPoller?.invalidate()
+        let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let items = self?.refs.diagItems, !items.isEmpty else { return }
+            let hidden = !NSEvent.modifierFlags.contains(.option)
+            // Escribir isHidden 10 veces por segundo relanzaría el layout del
+            // menú sin motivo: sólo se toca cuando el estado de ⌥ cambia.
+            if items[0].isHidden != hidden {
+                for it in items { it.isHidden = hidden }
+            }
+        }
+        RunLoop.main.add(t, forMode: .eventTracking)
+        optionPoller = t
+    }
 
     func menuDidClose(_ menu: NSMenu) {
         menuIsOpen = false
+        optionPoller?.invalidate()
+        optionPoller = nil
         // El menú cerrado ya no necesita mantenerse al día; la próxima apertura
         // lo reconstruye entero desde cero en menuNeedsUpdate.
         refs = MenuRefs()

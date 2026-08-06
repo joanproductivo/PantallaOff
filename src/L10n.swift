@@ -70,6 +70,7 @@ struct Strings {
     let openLog: String
     let verboseLog: String
     let forceReenable: String
+    let versionLine: (String) -> String
 
     // Estado de la pantalla interna
     let stateOn: String
@@ -105,6 +106,7 @@ struct Strings {
     let alertKeepDisplayTitle: String
     let alertLoginItemTitle: String
     let alertKeyboardTitle: String
+    let alertOK: String
 
     // LoginItem
     let loginNotBundled: String
@@ -141,6 +143,7 @@ extension Strings {
         openLog: "Abrir el registro",
         verboseLog: "Registro detallado",
         forceReenable: "Forzar reactivación de todas las pantallas",
+        versionLine: { "  Versión: \($0)" },
 
         stateOn: "Pantalla del MacBook: encendida",
         stateMirroredSlave: "Pantalla del MacBook: encendida, mostrando un espejo",
@@ -175,6 +178,7 @@ extension Strings {
         alertKeepDisplayTitle: "Mantener la pantalla encendida",
         alertLoginItemTitle: "Arranque automático",
         alertKeyboardTitle: "Luz del teclado",
+        alertOK: "Aceptar",
 
         loginNotBundled: "La app no está empaquetada (ejecútala desde el .app)",
         loginUnknownState: "Estado desconocido",
@@ -215,6 +219,7 @@ extension Strings {
         openLog: "Open the log",
         verboseLog: "Verbose logging",
         forceReenable: "Force re-enable all displays",
+        versionLine: { "  Version: \($0)" },
 
         stateOn: "MacBook display: on",
         stateMirroredSlave: "MacBook display: on, showing a mirror",
@@ -249,6 +254,7 @@ extension Strings {
         alertKeepDisplayTitle: "Keep the display on",
         alertLoginItemTitle: "Open at login",
         alertKeyboardTitle: "Keyboard backlight",
+        alertOK: "OK",
 
         loginNotBundled: "The app isn't bundled (run it from the .app)",
         loginUnknownState: "Unknown state",

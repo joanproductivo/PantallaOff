@@ -22,7 +22,9 @@ make icon       # regenera resources/AppIcon.icns desde tools/make-icon.swift
 make clean
 ```
 
-Diagnósticos que no abren interfaz (útiles para verificar sin tocar nada):
+Diagnósticos que no abren interfaz. `--kb-diag` es de solo lectura; `--login-item-diag`
+**registra y restaura** el estado previo del arranque (y con `requiresApproval` o «no
+disponible» no muta nada):
 
 ```bash
 /Applications/PantallaOff.app/Contents/MacOS/PantallaOff --kb-diag
@@ -39,8 +41,10 @@ verdad**. Reglas de trabajo, no negociables:
 
 - **Valida siempre contra el monitor EXTERNO primero.** Es el único display que se puede
   reconectar a mano. `selftest` se niega a apuntar a la interna sin `--allow-builtin`.
-- **Nunca ejecutes mutaciones sin el usuario delante.** `probe`, `rescue --status` y los
-  `--*-diag` son de solo lectura y puedes usarlos libremente; todo lo demás no.
+- **Nunca ejecutes mutaciones sin el usuario delante.** `probe`, `rescue --status` y
+  `--kb-diag` son de solo lectura y puedes usarlos libremente; `--login-item-diag` registra
+  y restaura el estado previo del arranque (no toca pantallas, pero muta y revierte);
+  todo lo demás no.
 - En modo espejo `selftest` se negará: sólo hay un display en la lista Active.
 
 ```bash

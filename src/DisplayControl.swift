@@ -329,6 +329,12 @@ final class DisplayControl {
         let t = Timer(timeInterval: watchdogInterval, repeats: true) { [weak self] _ in
             self?.evaluateSafety(trigger: "timer")
         }
+        // 10 % de tolerancia (la recomendación de Apple) para que el sistema
+        // coalezca despertares y ahorre energía. 3±0,3 s no compromete nada:
+        // el watchdog es una red que SOLO enciende (P1), no un plazo — las
+        // emergencias de verdad las ven el fast-path del callback CG y el
+        // vigía IOKit, no este timer.
+        t.tolerance = 0.3
         RunLoop.main.add(t, forMode: .common)
         watchdogTimer = t
 
