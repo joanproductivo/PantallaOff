@@ -10,7 +10,7 @@ Apple Silicon · macOS 13+ · MIT · No necesita Xcode
 
 ## Por qué
 
-Estás trabajando en un monitor externo. O viendo una película en la tele. En cualquier caso,
+Estás trabajando en un monitor externo, viendo una película en la tele o usando unas Gafas de VR. En cualquier caso,
 la pantalla del MacBook, ahí abajo, no aporta nada: te parte la atención, se traga ventanas,
 alumbra a oscuras y gasta batería.
 

@@ -10,7 +10,7 @@ Apple Silicon · macOS 13+ · MIT · No Xcode required
 
 ## Why
 
-You're working on an external monitor. Or watching a film on the TV. Either way, the MacBook
+You're working on an external monitor, watching a film on the TV, or using a VR headset. Either way, the MacBook
 screen below is doing nothing useful: it splits your attention, drags windows into it, glows
 in the dark, and burns battery.
 
