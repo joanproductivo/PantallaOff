@@ -143,7 +143,9 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   externo, apagar la interna dejaba la cuenta física en 0 y el vigía reencendía dentro de
   la propia transacción (fuego amigo). Por eso la terminación solo-Embedded (Location
   leída positivamente) no actúa en ioQueue: delega en el watchdog, que ve la topología
-  asentada.
+  asentada. Y al revés que el cable, **el desmontaje de un virtual SÍ lo procesa CG**
+  (medido: el acelerador lo ve desaparecer al instante y cg-reenum reenciende al primer
+  intento — sin zombi): las redes CG cubren a los virtuales de forma nativa.
 - **`hw.model` ya no contiene "Book"** desde 2022 (`Mac15,10`). Para detectar portátil se usa
   la presencia de `AppleSmartBattery`.
 
