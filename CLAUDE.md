@@ -72,11 +72,16 @@ Reparto del lado Swift:
 | `KeepAwake.swift` | `IOPMAssertion` (API pública) |
 | `LidSleep.swift` | «dormir al cerrar la tapa»: vigía clamshell + `IOPMSleepSystem` (públicas) |
 | `KeyboardLight.swift` | `KeyboardBrightnessClient` de CoreBrightness (privada) |
+| `LoginItem.swift` | arranque al inicio (`SMAppService`, pública) |
 | `L10n.swift` | cadenas es/en |
 | `MenuRow.swift` | filas de menú que no cierran al hacer clic (interruptores) |
+| `main.swift` | punto de entrada y CLIs de diagnóstico (`--kb-diag`, `--login-item-diag`) |
 
 Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre procesos),
-`~/.pantallaoff-armed` (pid del dead-man), `~/Library/Logs/PantallaOff.log`.
+`~/.pantallaoff-armed` (pid del dead-man), `~/Library/Logs/PantallaOff.log`. En
+`UserDefaults` (dominio del bundle id — de ahí el aviso de arriba): `restoreOffEnabled` y
+`restoreIntent` (P1-R; la intención sobrevive al reinicio y NUNCA es el ancla del rescate —
+eso es el fichero de estado), `sleepOnLidClose`, `verboseLogging` y `language`.
 
 ### Las cinco invariantes
 
@@ -89,7 +94,8 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
   usuario tras despertar o arrancar, reutilizando la transacción completa del menú
   (precondición + P5 + dead-man + postcondición), exigiendo el MISMO externo utilizable
   ≥5 s (continuidad por ID) y ≥5 s sin reconfiguraciones, dentro de una ventana de 60 s
-  con un solo intento. Watchdog, wake, callbacks y vigía IOKit sólo pueden **encender**.
+  (cuyo reloj se pausa mientras el sistema tiene las pantallas dormidas) con un solo
+  intento. Watchdog, wake, callbacks y vigía IOKit sólo pueden **encender**.
   Sólo hay dos callers de `pc_set_display_enabled(..., false)` — el flujo `turnOffBuiltIn`
   (menú y restauración P1-R) y la CLI de `selftest`. Si añades otro caller u otra ruta
   automática, párate a pensar.
@@ -118,7 +124,8 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
 - **Con cero pantallas activas la recuperación por software es imposible**: WindowServer acepta
   el enable y falla el hotplug del panel. Salidas: reconectar un monitor,
   `sudo killall -HUP WindowServer`, o reiniciar.
-- **El zombi**: con la interna apagada, desenchufar el externo **no llega a CoreGraphics** — CG
+- **El zombi**: con la interna apagada, desenchufar el externo **físico** **no llega a
+  CoreGraphics** — CG
   lo sigue reportando online y activo. Por eso existe el vigía IOKit
   (`DCPAVServiceProxy` + `kIOTerminatedNotification`): es el único canal que ve el desenchufe
   físico, y actúa dentro de la ventana en la que el enable todavía funciona.
@@ -135,9 +142,11 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   WindowServer.
 - **El proxy `DCPAVServiceProxy` External es por conexión**: muere al desenchufar (a 1 Hz
   desaparece del registro) y renace con registry ID nuevo al reenchufar. Apagar la interna
-  mata su propio proxy y dispara el vigía (ruido esperado, filtrado por la cuenta). En el
-  instante de la terminación el moribundo puede seguir enumerándose: la cuenta excluye los
-  registry IDs que la notificación declaró muertos.
+  mata su propio proxy Embedded y dispara el vigía (ruido esperado: la terminación
+  solo-Embedded se clasifica por `Location` y se delega al watchdog — ver el bullet del
+  display virtual). En el instante de la terminación el moribundo puede seguir
+  enumerándose: la cuenta de la rama física excluye los registry IDs que la notificación
+  declaró muertos.
 - **Un display virtual no tiene `DCPAVServiceProxy`** (medido 2026-08-06, gafas VR en modo
   extendido): es visible para CG e invisible para el canal IOKit. Con sólo un virtual como
   externo, apagar la interna dejaba la cuenta física en 0 y el vigía reencendía dentro de
@@ -151,10 +160,13 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
 
 ### Concurrencia
 
-Toda mutación de pantallas va en `workQueue`, **nunca en el hilo principal**: se midieron
-transacciones de CoreGraphics bloqueadas ~21 s, y bloquear `main` congelaría el timer del
-watchdog justo en la ventana más peligrosa. El fast-path del callback CG y el vigía IOKit
-corren en sus propios hilos y se serializan con `fastPathLock`.
+Toda mutación ordinaria de pantallas (apagado, rescate, espejo) va en `workQueue`, **nunca
+en el hilo principal**: se midieron transacciones de CoreGraphics bloqueadas ~21 s, y
+bloquear `main` congelaría el timer del watchdog justo en la ventana más peligrosa. Las
+emergencias mutan in situ (el fast-path en el hilo del callback CG; el vigía en `ioQueue`)
+y se serializan con `fastPathLock` — pero la rama solo-Embedded del vigía no toca CG en
+`ioQueue`: delega en el watchdog. `LidSleep` confina su estado en su propia cola, y el
+estado de la ventana P1-R vive confinado en `workQueue`.
 
 ## Convenciones
 
@@ -167,9 +179,12 @@ de interfaz, añádela a `Strings`; si es de log, no.
 Swift lo traduce; la variante con texto (`pc_can_disable_builtin`) existe sólo para `probe`.
 Nunca parsees cadenas del núcleo para decidir nada.
 
-**Registro.** `write()` va a un búfer en memoria de 200 eventos y **no toca el disco**;
-`writeProblem()` vuelca ese búfer junto con la anomalía. En marcha normal el fichero de log ni
-se crea. Rota a 128 KB. Usa `writeProblem` sólo para lo que merece investigación.
+**Registro.** `write()` va a un búfer en memoria de 200 eventos y **no toca el disco** —
+salvo con «Registro detallado» activado (⌥ → Diagnóstico), que vuelca cada evento a disco y
+añade un latido cada 30 s mientras haya algo apagado; `writeProblem()` vuelca ese búfer
+junto con la anomalía (en modo detallado omite el volcado: ya está todo en disco). En marcha
+normal el fichero de log ni se crea. Rota a 128 KB. Usa `writeProblem` sólo para lo que
+merece investigación.
 
 **El icono se dibuja por código** (`tools/make-icon.swift`), no es un binario opaco: los
 tamaños ≤ 64 px usan una variante más rotunda porque el diseño normal se empasta.
