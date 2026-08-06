@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -97,9 +98,22 @@ static bool pc_is_laptop(void) {
 bool pc_is_usable_external(CGDirectDisplayID id, CGDirectDisplayID builtin_id) {
     if (id == kCGNullDirectDisplay)        return false;
     if (CGDisplayIsBuiltin(id))            return false;
-    /* Los displays virtuales / dummy no tienen vendor. No cuentan como
-     * pantalla real en la que el usuario pueda ver algo. */
-    if (CGDisplayVendorNumber(id) == 0)    return false;
+    /* Un display sin vendor puede ser virtual… o un panel real por HDMI.
+     * MEDIDO (2026-08-06, M3 Max, macOS 26.6, monitor 1920x1080): el camino
+     * HDMI no expone vendor/model/serial (todo 0) pero el tamaño físico EDID
+     * SÍ llega (254x169 mm). OJO: mm > 0 no basta como criterio — el header
+     * (CGDisplayConfiguration.h) documenta que sin EDID el tamaño se ESTIMA
+     * desde CGDisplayBounds a 2.835 px/mm (72 dpi), nunca 0. La prueba de
+     * panel físico es que los mm difieran de esa estimación: entonces vienen
+     * del EDID. Un virtual sin tamaño EDID real sigue excluido. */
+    if (CGDisplayVendorNumber(id) == 0) {
+        CGSize mm = CGDisplayScreenSize(id);
+        CGRect b  = CGDisplayBounds(id);
+        double ew = b.size.width  / 2.835;   /* estimación 72 dpi del header */
+        double eh = b.size.height / 2.835;
+        if (fabs(mm.width - ew) < 1.0 && fabs(mm.height - eh) < 1.0) return false;
+        if (mm.width <= 0 || mm.height <= 0) return false;  /* ID inválido */
+    }
     /* Active, NO Online: bajo espejo hardware el esclavo desaparece de la
      * lista Active. Usar Online aquí era el bug de la v1. */
     if (!pc_in_active_list(id))            return false;

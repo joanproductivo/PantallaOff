@@ -63,7 +63,8 @@ CGDirectDisplayID pc_builtin_id(void);
 
 /* Un externo es UTILIZABLE si:
  *   - no es la interna
- *   - no es virtual/dummy (vendor != 0)
+ *   - con vendor 0, exige tamaño EDID real (≠ estimación 72 dpi): un panel
+ *     físico lo declara; por HDMI el vendor llega a 0 en monitores reales
  *   - está en CGGetActiveDisplayList  <-- Active, NO Online.
  *   - no está dormido (cubre DPMS / monitor apagado por su botón)
  *   - no es esclavo de un espejo cuya fuente es la interna

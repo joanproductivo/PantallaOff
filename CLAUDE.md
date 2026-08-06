@@ -113,6 +113,11 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   lo sigue reportando online y activo. Por eso existe el vigía IOKit
   (`DCPAVServiceProxy` + `kIOTerminatedNotification`): es el único canal que ve el desenchufe
   físico, y actúa dentro de la ventana en la que el enable todavía funciona.
+- **Por HDMI la identidad EDID llega a cero** (medido 2026-08-06, M3 Max, monitor
+  1920×1080): `CGDisplayVendorNumber`, model y serial devuelven 0 en un monitor real, pero
+  el tamaño físico EDID sí llega. Y `CGDisplayScreenSize` sin EDID devuelve una estimación
+  a 72 dpi desde los bounds, **nunca 0** — por eso el predicado compara los mm contra la
+  estimación, no contra cero.
 - **`hw.model` ya no contiene "Book"** desde 2022 (`Mac15,10`). Para detectar portátil se usa
   la presencia de `AppleSmartBattery`.
 
