@@ -79,7 +79,7 @@ CGDirectDisplayID pc_builtin_id(void) {
  * primera versión hacía strstr("Book") y devolvía false en todos los MacBooks
  * modernos — dejando ciega la señal de rescate que no depende del fichero de
  * estado. El strstr se conserva sólo como respaldo para modelos antiguos. */
-static bool pc_is_laptop(void) {
+bool pc_is_laptop(void) {
     io_service_t batt = IOServiceGetMatchingService(kIOMainPortDefault,
                             IOServiceMatching("AppleSmartBattery"));
     if (batt != IO_OBJECT_NULL) { IOObjectRelease(batt); return true; }

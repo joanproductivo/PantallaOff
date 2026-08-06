@@ -69,6 +69,7 @@ Reparto del lado Swift:
 | `DisplayControl.swift` | watchdog, vigía IOKit, dead-man, registro, cola de trabajo |
 | `AppDelegate.swift` | menú y acciones (única puerta por la que se apaga) |
 | `KeepAwake.swift` | `IOPMAssertion` (API pública) |
+| `LidSleep.swift` | «dormir al cerrar la tapa»: vigía clamshell + `IOPMSleepSystem` (públicas) |
 | `KeyboardLight.swift` | `KeyboardBrightnessClient` de CoreBrightness (privada) |
 | `L10n.swift` | cadenas es/en |
 | `MenuRow.swift` | filas de menú que no cierran al hacer clic (interruptores) |

@@ -54,6 +54,11 @@ typedef struct {
 
 uint32_t pc_snapshot(pc_display *out, uint32_t cap);
 
+/* ¿Es un portátil? Señal: la presencia de AppleSmartBattery (hw.model ya no
+ * contiene "Book" desde 2022). La usa la app para la fila «Dormir al cerrar
+ * la tapa», además del rescate internamente. */
+bool pc_is_laptop(void);
+
 /* ID de la pantalla interna, o kCGNullDirectDisplay si no hay/desapareció.
  * OJO: si la interna está desactivada, sale de la lista online y esto
  * devuelve 0. Para el rescate hay que usar el ID persistido, no esto. */

@@ -58,6 +58,7 @@ struct Strings {
     let breakMirror: String
     let keepAwake: String
     let keepDisplayOn: String
+    let sleepOnLidClose: String
     let openAtLogin: String
     let openAtLoginDisabledInSettings: String
     let openAtLoginUnavailable: (String) -> String
@@ -132,6 +133,7 @@ extension Strings {
         breakMirror: "Romper el espejo (la interna es la fuente)",
         keepAwake: "Mantener el Mac despierto",
         keepDisplayOn: "      …y la pantalla encendida",
+        sleepOnLidClose: "Dormir al cerrar la tapa",
         openAtLogin: "Abrir al iniciar sesión",
         openAtLoginDisabledInSettings: "Abrir al iniciar sesión — desactivado en Ajustes",
         openAtLoginUnavailable: { "Abrir al iniciar sesión — \($0)" },
@@ -208,6 +210,7 @@ extension Strings {
         breakMirror: "Break the mirror (built-in is the source)",
         keepAwake: "Keep the Mac awake",
         keepDisplayOn: "      …and the display on",
+        sleepOnLidClose: "Sleep when the lid closes",
         openAtLogin: "Open at login",
         openAtLoginDisabledInSettings: "Open at login — disabled in Settings",
         openAtLoginUnavailable: { "Open at login — \($0)" },

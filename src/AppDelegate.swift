@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var awakeRow: StayOpenRow?
         var keepDisplayItem: NSMenuItem?
         var keepDisplayRow: StayOpenRow?
+        var lidRow: StayOpenRow?
         var kbRow: StayOpenRow?
         var loginRow: StayOpenRow?
         var loginPlainItem: NSMenuItem?   // variantes requiresApproval / unsupported
@@ -65,6 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu?.delegate = self
 
         control.startWatchdog { [weak self] in self?.refresh() }
+
+        // Si «dormir al cerrar la tapa» quedó activado en una sesión
+        // anterior, el vigía de la tapa debe revivir con la app: un
+        // interruptor marcado con la función muerta sería mentir.
+        LidSleep.startIfEnabled()
 
         // Reconciliación al arrancar: si consta algo apagado pero en realidad
         // todo está online y activo (p.ej. hubo un reinicio, que descarta la
@@ -211,6 +217,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refs.awakeItem = awakeItem
         refs.awakeRow = awakeRow
         if KeepAwake.isOn { insertKeepDisplayRow(in: menu, after: awakeItem) }
+
+        // Dormir al cerrar la tapa: sólo tiene sentido con tapa (portátil).
+        if pc_is_laptop() {
+            let (lidItem, lidRow) = stayOpenRow(title: s.sleepOnLidClose,
+                                                checked: LidSleep.enabled) { [weak self] in
+                self?.toggleLidSleep()
+            }
+            menu.addItem(lidItem)
+            refs.lidRow = lidRow
+        }
 
         // Luz del teclado: sólo si este Mac tiene teclado retroiluminado.
         // El título se recalcula tras cada clic con la lectura en vivo.
@@ -383,6 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             refs.keepDisplayRow = nil
         }
 
+        refs.lidRow?.configure(title: s.sleepOnLidClose, checked: LidSleep.enabled)
         refs.kbRow?.configure(title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
                               checked: false)
         refs.loginRow?.configure(title: s.openAtLogin, checked: LoginItem.state.isOn)
@@ -474,6 +491,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             control.write("arranque al iniciar sesión: \(turningOn ? "activado" : "desactivado")")
         }
+        refresh()
+    }
+
+    private func toggleLidSleep() {
+        LidSleep.enabled.toggle()
+        control.write("dormir al cerrar la tapa: \(LidSleep.enabled ? "activado" : "desactivado")")
         refresh()
     }
 

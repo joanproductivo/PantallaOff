@@ -15,8 +15,8 @@ SWIFTFLAGS = -sdk $(SDK) -target $(TARGET) -O \
 CORE_SRC   = src/PantallaCore.c
 CORE_OBJ   = $(BIN)/PantallaCore.o
 SWIFT_SRC  = src/L10n.swift src/MenuRow.swift src/DisplayControl.swift src/LoginItem.swift \
-             src/KeepAwake.swift src/KeyboardLight.swift src/AppDelegate.swift \
-             src/main.swift
+             src/KeepAwake.swift src/KeyboardLight.swift src/LidSleep.swift \
+             src/AppDelegate.swift src/main.swift
 
 .PHONY: all tools app bundle sign install uninstall clean probe status help rescue selftest icon
 
