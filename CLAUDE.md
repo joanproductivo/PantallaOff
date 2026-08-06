@@ -66,8 +66,8 @@ Reparto del lado Swift:
 
 | Fichero | Responsabilidad |
 |---|---|
-| `DisplayControl.swift` | watchdog, vigía IOKit, dead-man, registro, cola de trabajo |
-| `AppDelegate.swift` | menú y acciones (única puerta por la que se apaga) |
+| `DisplayControl.swift` | watchdog, vigía IOKit, dead-man, restauración P1-R, registro, cola de trabajo |
+| `AppDelegate.swift` | menú y acciones (el apagado sólo entra por `turnOffBuiltIn`: menú y restauración P1-R) |
 | `KeepAwake.swift` | `IOPMAssertion` (API pública) |
 | `LidSleep.swift` | «dormir al cerrar la tapa»: vigía clamshell + `IOPMSleepSystem` (públicas) |
 | `KeyboardLight.swift` | `KeyboardBrightnessClient` de CoreBrightness (privada) |
@@ -81,10 +81,16 @@ Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre proceso
 
 Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
 
-- **P1 — fail-open.** *Ninguna ruta automática puede DESACTIVAR un display.* Watchdog, wake,
-  callbacks y vigía IOKit sólo pueden **encender**. Sólo hay dos callers de
-  `pc_set_display_enabled(..., false)` y ambos nacen de una acción explícita: el menú y la CLI
-  de `selftest`. Si añades un tercero, párate a pensar.
+- **P1 — fail-open.** *Ninguna ruta automática puede DESACTIVAR un display*, con UNA
+  excepción acotada (P1-R): la **restauración opt-in** («Restaurar el apagado al despertar o
+  arrancar», desactivada por defecto), que re-aplica una decisión explícita previa del
+  usuario tras despertar o arrancar, reutilizando la transacción completa del menú
+  (precondición + P5 + dead-man + postcondición), exigiendo el MISMO externo utilizable
+  ≥5 s (continuidad por ID) y ≥5 s sin reconfiguraciones, dentro de una ventana de 60 s
+  con un solo intento. Watchdog, wake, callbacks y vigía IOKit sólo pueden **encender**.
+  Sólo hay dos callers de `pc_set_display_enabled(..., false)` — el flujo `turnOffBuiltIn`
+  (menú y restauración P1-R) y la CLI de `selftest`. Si añades otro caller u otra ruta
+  automática, párate a pensar.
 - **P2 — el rescate no depende de enumerar.** Un display desactivado desaparece de
   `CGGetOnlineDisplayList`; sólo se recupera por su ID persistido o con la API pública
   `CGRestorePermanentDisplayConfiguration()`.

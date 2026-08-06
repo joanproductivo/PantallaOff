@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var keepDisplayItem: NSMenuItem?
         var keepDisplayRow: StayOpenRow?
         var lidRow: StayOpenRow?
+        var restoreRow: StayOpenRow?
         var kbRow: StayOpenRow?
         var loginRow: StayOpenRow?
         var loginPlainItem: NSMenuItem?   // variantes requiresApproval / unsupported
@@ -76,6 +77,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // todo está online y activo (p.ej. hubo un reinicio, que descarta la
         // configuración), el fichero de estado está obsoleto.
         reconcileStaleState()
+        // Restauración P1-R: si la interna estaba apagada al apagar el Mac,
+        // este arranque abre la ventana (sólo con el interruptor activado).
+        // DESPUÉS de reconciliar: una entrada rancia de la interna daría un
+        // falso ALREADY_OFF y cerraría la ventana sin restaurar.
+        control.openRestoreWindowAtLaunch()
         KeyboardLight.reconcile()
         refresh()
 
@@ -91,6 +97,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Quitar la app es dejar de gestionar: la intención de restauración se
+        // borra — salvo que esta terminación venga del apagado del Mac, cuyo
+        // contrato es justo conservarla para el próximo arranque.
+        control.appWillTerminate()
+
         // Las assertions de energía mueren con el proceso, pero soltarlas
         // explícitamente evita dejar una entrada fantasma en `pmset -g assertions`.
         KeepAwake.set(enabled: false, includeDisplay: false)
@@ -226,6 +237,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             menu.addItem(lidItem)
             refs.lidRow = lidRow
+
+            let (restItem, restRow) = stayOpenRow(title: s.restoreOff,
+                                                  checked: DisplayControl.restoreOffEnabled) { [weak self] in
+                self?.toggleRestoreOff()
+            }
+            menu.addItem(restItem)
+            refs.restoreRow = restRow
         }
 
         // Luz del teclado: sólo si este Mac tiene teclado retroiluminado.
@@ -240,8 +258,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        // Arranque al iniciar sesión. Seguro porque la app nunca apaga nada
-        // por su cuenta (P1): arrancar sola sólo pone el icono en la barra.
+        // Arranque al iniciar sesión. Seguro porque la app no apaga nada por
+        // su cuenta (P1; la única excepción, la restauración P1-R, es opt-in,
+        // re-aplica una decisión previa del usuario y exige externo utilizable
+        // estable): arrancar sola sólo pone el icono en la barra.
         switch LoginItem.state {
         case .enabled, .disabled:
             let (li, row) = stayOpenRow(title: s.openAtLogin,
@@ -400,6 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         refs.lidRow?.configure(title: s.sleepOnLidClose, checked: LidSleep.enabled)
+        refs.restoreRow?.configure(title: s.restoreOff, checked: DisplayControl.restoreOffEnabled)
         refs.kbRow?.configure(title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
                               checked: false)
         refs.loginRow?.configure(title: s.openAtLogin, checked: LoginItem.state.isOn)
@@ -491,6 +512,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             control.write("arranque al iniciar sesión: \(turningOn ? "activado" : "desactivado")")
         }
+        refresh()
+    }
+
+    private func toggleRestoreOff() {
+        DisplayControl.restoreOffEnabled.toggle()
+        if !DisplayControl.restoreOffEnabled {
+            control.cancelRestoreIntent(reason: "interruptor desactivado")
+        }
+        control.write("restaurar el apagado: \(DisplayControl.restoreOffEnabled ? "activado" : "desactivado")")
         refresh()
     }
 

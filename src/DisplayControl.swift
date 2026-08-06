@@ -111,7 +111,7 @@ final class DisplayControl {
         }
     }
 
-    // MARK: - Acciones del usuario (las ÚNICAS que pueden apagar — P1)
+    // MARK: - Apagar y encender (única puerta de apagado: menú y restauración P1-R)
 
     func turnOffBuiltIn(completion: @escaping (Result<Void, PantallaError>) -> Void) {
         workQueue.async {
@@ -203,6 +203,13 @@ final class DisplayControl {
     }
 
     func turnOnAll(completion: ((Bool) -> Void)? = nil) {
+        // La vía del MENÚ («Encender» y «Forzar reactivación»): un encendido
+        // explícito cancela también cualquier intención de restauración
+        // pendiente — el usuario acaba de cambiar de opinión. Las vías
+        // automáticas (watchdog, vigía, fast-path) usan turnOnAllSync o la
+        // emergencia y NO cancelan: sólo actúan con algo apagado, estado
+        // incompatible con una ventana armada.
+        cancelRestoreIntent(reason: "encender explícito del menú")
         workQueue.async {
             let ok = self.turnOnAllSync()
             DispatchQueue.main.async { completion?(ok) }
@@ -273,14 +280,18 @@ final class DisplayControl {
                 self?.evaluateSafety(trigger: "screenParameters")
         }
 
-        // Despertar: comprobar y, si hace falta, ENCENDER. Nunca re-apagar.
-        // Un re-aplicador tras el wake sería una carrera contra la
-        // re-enumeración del externo (que tarda segundos, más con un dock) y
-        // podría dejar cero pantallas justo al abrir la tapa.
+        // Despertar: comprobar y, si hace falta, ENCENDER. El único re-apagado
+        // posible es la restauración opt-in P1-R, que NO corre aquí: abre una
+        // ventana y exige el mismo externo utilizable ≥5 s sin
+        // reconfiguraciones antes de re-aplicar por la transacción completa
+        // del menú — ésa es la respuesta a la carrera de re-enumeración (tarda
+        // segundos, más con un dock) que hacía peligroso un re-aplicador
+        // ingenuo tras el wake.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil, queue: .main) { [weak self] _ in
-                self?.write("wake: comprobando seguridad (nunca se apaga nada automáticamente)")
+                self?.write("wake: comprobando seguridad")
+                self?.workQueue.async { self?.openRestoreWindow(trigger: "despertar") }
                 self?.evaluateSafety(trigger: "wake")
         }
 
@@ -294,14 +305,34 @@ final class DisplayControl {
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.willSleepNotification,
             object: nil, queue: .main) { [weak self] _ in
-                guard let self, !self.disabledByUs().isEmpty else { return }
+                guard let self else { return }
+                let wasOff = !self.disabledByUs().isEmpty
+                // La intención se escribe SIEMPRE, no sólo cuando hay algo
+                // apagado: así queda coherente con el último dormir/apagar
+                // real, y un apagado CANCELADO por el usuario no puede dejar
+                // una intención rancia armada (hallazgo de la auditoría).
+                Self.restoreIntent = Self.restoreOffEnabled && wasOff
+                guard wasOff else { return }
                 self.write("willSleep: encendiendo la interna por precaución")
                 self.turnOnAllBlocking()
         }
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.willPowerOffNotification,
             object: nil, queue: .main) { [weak self] _ in
-                guard let self, !self.disabledByUs().isEmpty else { return }
+                guard let self else { return }
+                // Apagado, reinicio o logout: la terminación que sigue no debe
+                // borrar la intención (appWillTerminate consulta este flag).
+                self.poweringOff = true
+                // Si el apagado se CANCELA, el proceso sigue vivo: soltar el
+                // latch pasado un margen — sin esto, un Cmd-Q posterior en la
+                // misma sesión conservaría la intención y rompería «quitar la
+                // app es dejar de gestionar».
+                DispatchQueue.main.asyncAfter(deadline: .now() + 60) { [weak self] in
+                    self?.poweringOff = false
+                }
+                let wasOff = !self.disabledByUs().isEmpty
+                Self.restoreIntent = Self.restoreOffEnabled && wasOff
+                guard wasOff else { return }
                 self.write("willPowerOff: encendiendo la interna")
                 self.turnOnAllBlocking()
         }
@@ -553,6 +584,157 @@ final class DisplayControl {
         }
     }
 
+    // MARK: - Restauración del apagado (P1-R, opt-in)
+    //
+    // Excepción acotada de P1 (ver CLAUDE.md): re-aplicar tras despertar o
+    // arrancar una decisión explícita PREVIA del usuario, por la MISMA
+    // transacción del menú (precondición + P5 + dead-man + postcondición).
+    // Desactivada por defecto.
+
+    static var restoreOffEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "restoreOffEnabled") }
+        set { UserDefaults.standard.set(newValue, forKey: "restoreOffEnabled") }
+    }
+
+    /// Intención persistida: «la interna estaba apagada por el usuario cuando
+    /// el sistema se fue a dormir o a apagar». Sobrevive al reinicio (por eso
+    /// UserDefaults). NUNCA es el ancla del rescate — eso es el fichero de
+    /// estado (P2) — y ninguna de las dos cosas toca a la otra.
+    private static var restoreIntent: Bool {
+        get { UserDefaults.standard.bool(forKey: "restoreIntent") }
+        set { UserDefaults.standard.set(newValue, forKey: "restoreIntent") }
+    }
+
+    /// Estado de la ventana de restauración. CONFINADO a workQueue.
+    private var restoreWindowUntil: Date?
+    private var restoreStableID: CGDirectDisplayID = 0
+    private var restoreStableSince: Date?
+    /// Última reconfiguración vista (cualquier trigger que no sea "timer").
+    /// Sólo se escribe en evaluateSafetySync: workQueue, sin carreras.
+    private var lastReconfigAt = Date.distantPast
+    /// true desde willPowerOff hasta la muerte del proceso (o su reset si el
+    /// apagado se cancela). Sólo se toca en el hilo principal.
+    private var poweringOff = false
+
+    /// En workQueue.
+    private func openRestoreWindow(trigger: String) {
+        guard Self.restoreOffEnabled, Self.restoreIntent else { return }
+        restoreWindowUntil = Date().addingTimeInterval(60)
+        restoreStableID = 0
+        restoreStableSince = nil
+        write("restauración: ventana abierta (\(trigger)); esperando externo utilizable estable")
+    }
+
+    /// Para el arranque de la app (login item tras un reinicio del Mac).
+    func openRestoreWindowAtLaunch() {
+        workQueue.async { self.openRestoreWindow(trigger: "arranque") }
+    }
+
+    /// Cancela intención y ventana (Encender del menú, interruptor a off).
+    func cancelRestoreIntent(reason: String) {
+        if Self.restoreIntent { write("restauración: intención cancelada (\(reason))") }
+        Self.restoreIntent = false
+        workQueue.async { self.restoreWindowUntil = nil }
+    }
+
+    /// Al terminar la app: quitar la app es dejar de gestionar — salvo que la
+    /// terminación venga del apagado del Mac (poweringOff), cuyo contrato es
+    /// justo conservar la intención para el próximo arranque.
+    func appWillTerminate() {
+        if !poweringOff { Self.restoreIntent = false }
+    }
+
+    /// En workQueue, al PRINCIPIO de evaluateSafetySync: la ventana vive en el
+    /// estado «todo encendido», donde el resto de la función hace return
+    /// temprano — por eso el enganche va antes de ese guard.
+    private func checkRestoreWindow() {
+        guard let until = restoreWindowUntil else { return }
+        // La ventana sólo vive mientras la intención y el interruptor sigan
+        // vivos (hallazgo de la verificación): un dormir intermedio con todo
+        // encendido recalcula la intención a false pero no cerraba la ventana
+        // — y una cancelación desde otro hilo puede cruzarse con un tick ya
+        // encolado. Re-comprobar aquí, en el mismo tick que decide, cierra
+        // las dos vías.
+        guard Self.restoreOffEnabled, Self.restoreIntent else {
+            restoreWindowUntil = nil
+            return
+        }
+        // Dark wake / pantallas dormidas por el sistema: el reloj no corre —
+        // ni evalúa ni expira; espera al despertar real (hallazgo: una ventana
+        // abierta por un despertar de mantenimiento no debe consumir la
+        // intención a ciegas).
+        if systemScreensAsleep {
+            restoreWindowUntil = until.addingTimeInterval(watchdogInterval)
+            return
+        }
+        if Date() >= until {
+            restoreWindowUntil = nil
+            if Self.restoreIntent {
+                Self.restoreIntent = false
+                write("restauración: ventana expirada sin condición estable; intención olvidada")
+            }
+            return
+        }
+        let why = pc_can_disable_builtin_why()
+        if why == PC_DENY_ALREADY_OFF {
+            // El usuario (u otra vía explícita) ya la apagó: deseo cumplido,
+            // cierre satisfecho — no es una expiración ni un fallo.
+            restoreWindowUntil = nil
+            Self.restoreIntent = false
+            write("restauración: la interna ya está apagada; ventana cerrada satisfecha")
+            return
+        }
+        guard why == PC_DENY_OK else {
+            restoreStableID = 0
+            restoreStableSince = nil
+            return
+        }
+        // Continuidad por ID: el MISMO externo utilizable ≥5 s. El silencio de
+        // eventos solo no basta — el log del 2026-08-06 muestra huecos >5 s en
+        // mitad de bailes de cables aún en curso.
+        let ext = firstUsableExternalID()
+        guard ext != 0 else {
+            restoreStableID = 0
+            restoreStableSince = nil
+            return
+        }
+        let now = Date()
+        if ext != restoreStableID {
+            restoreStableID = ext
+            restoreStableSince = now
+            return
+        }
+        guard let since = restoreStableSince,
+              now.timeIntervalSince(since) >= 5,
+              now.timeIntervalSince(lastReconfigAt) >= 5 else { return }
+
+        // Decidido: UN solo intento — la ventana se cierra AQUÍ, al decidir,
+        // no en el resultado (el tick siguiente ya está encolado detrás).
+        restoreWindowUntil = nil
+        write("restauración: externo \(ext) estable ≥5 s; re-aplicando el apagado del usuario")
+        switch turnOffBuiltInSync() {
+        case .success:
+            Self.restoreIntent = false
+            write("restauración: interna apagada de nuevo (decisión previa del usuario)")
+        case .failure(let err):
+            Self.restoreIntent = false
+            writeProblem("restauración: falló (\(err.localizedDescription)); la interna se queda encendida")
+        }
+        notifyChange()
+    }
+
+    /// En workQueue. Primer externo utilizable de la lista online, o 0.
+    private func firstUsableExternalID() -> CGDirectDisplayID {
+        var online = [CGDirectDisplayID](repeating: 0, count: Int(PC_MAX_DISPLAYS))
+        var n: UInt32 = 0
+        guard CGGetOnlineDisplayList(UInt32(PC_MAX_DISPLAYS), &online, &n) == .success else { return 0 }
+        let builtin = pc_builtin_id()
+        for id in online.prefix(Int(n)) where pc_is_usable_external(id, builtin) {
+            return id
+        }
+        return 0
+    }
+
     /// Regla única del watchdog: si tenemos algo apagado y ya no queda ninguna
     /// salida utilizable, encender. Nunca lo contrario (P1).
     ///
@@ -580,6 +762,14 @@ final class DisplayControl {
     private var knownExternalIDs: Set<CGDirectDisplayID>?
 
     private func evaluateSafetySync(trigger: String) {
+        // Cualquier trigger de evento (no-timer) cuenta como reconfiguración
+        // para la estabilidad de la restauración. Sólo se escribe aquí.
+        if trigger != "timer" { lastReconfigAt = Date() }
+        // La ventana de restauración (P1-R) vive en el estado «todo
+        // encendido»: su enganche va ANTES del guard de disabledByUs, que en
+        // ese estado hace return temprano.
+        checkRestoreWindow()
+
         // Reconciliación continua, SOLO PARA EXTERNOS: una entrada de externo
         // cuyo display está online Y activo describe algo que ya no está
         // apagado (p. ej. el enable de willSleep aterrizó pero su remove se
