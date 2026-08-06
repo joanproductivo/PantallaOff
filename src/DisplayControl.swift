@@ -390,16 +390,38 @@ final class DisplayControl {
         write("vigía IOKit iniciado (terminación de DCPAVServiceProxy)")
     }
 
+    /// Registry IDs de proxies ya terminados. ACUMULATIVO a propósito: los
+    /// registry entry IDs no se reciclan dentro de un arranque, así que el
+    /// conjunto sólo puede contener muertos de verdad, y acumular cubre el
+    /// caso de dos cables fuera casi a la vez repartidos en dos
+    /// notificaciones. Confinado a ioQueue (única que lee y escribe).
+    private var deadProxyIDs = Set<UInt64>()
+
     private func ioProxyTerminated(iterator: io_iterator_t) {
         var saw = false
         var svc = IOIteratorNext(iterator)
-        while svc != 0 { saw = true; IOObjectRelease(svc); svc = IOIteratorNext(iterator) }
+        while svc != 0 {
+            saw = true
+            var eid: UInt64 = 0
+            if IORegistryEntryGetRegistryEntryID(svc, &eid) == KERN_SUCCESS {
+                deadProxyIDs.insert(eid)
+            }
+            IOObjectRelease(svc)
+            svc = IOIteratorNext(iterator)
+        }
         guard saw else { return }
 
         guard pc_state_builtin_disabled() else { return }
         pc_log_str("iokit: conexión de vídeo terminada con la interna apagada")
 
-        if externalProxyCount() > 0 {
+        // MEDIDO (2026-08-06): el proxy External es POR CONEXIÓN (muere al
+        // desenchufar, renace con registry ID nuevo al reenchufar), y apagar
+        // la interna mata su propio proxy disparando esta notificación con el
+        // externo vivo — por eso la cuenta importa. Pero en el instante de la
+        // terminación no hay garantía de que el moribundo ya no se enumere:
+        // excluir los muertos declarados por la notificación evita que el
+        // vigía se calle en el verdadero último cable.
+        if externalProxyCount(excluding: deadProxyIDs) > 0 {
             pc_log_str("iokit: queda otra conexión externa viva; no se actúa")
             return
         }
@@ -408,7 +430,7 @@ final class DisplayControl {
                                alreadyLocked: false)
     }
 
-    private func externalProxyCount() -> Int {
+    private func externalProxyCount(excluding dead: Set<UInt64>) -> Int {
         var iter: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault,
                                            IOServiceMatching("DCPAVServiceProxy"),
@@ -420,7 +442,15 @@ final class DisplayControl {
             if let cf = IORegistryEntryCreateCFProperty(svc, "Location" as CFString,
                                                         kCFAllocatorDefault, 0),
                let loc = cf.takeRetainedValue() as? String, loc == "External" {
-                count += 1
+                var eid: UInt64 = 0
+                if IORegistryEntryGetRegistryEntryID(svc, &eid) != KERN_SUCCESS {
+                    // Sin ID legible no se cuenta: contar de más es la
+                    // dirección insegura (silenciaría el rescate).
+                } else if dead.contains(eid) {
+                    pc_log_str("iokit: proxy moribundo excluido de la cuenta")
+                } else {
+                    count += 1
+                }
             }
             IOObjectRelease(svc)
             svc = IOIteratorNext(iter)
@@ -537,19 +567,39 @@ final class DisplayControl {
     private var knownExternalIDs: Set<CGDirectDisplayID>?
 
     private func evaluateSafetySync(trigger: String) {
-        // Reconciliación continua (antes sólo al arrancar): una entrada cuyo
-        // display está online Y activo describe algo que ya no está apagado —
-        // p. ej. el enable de willSleep aterrizó pero su remove se perdió en
-        // una carrera. Sin esto, la UI mentía hasta relanzar la app. Corre en
-        // workQueue, serializada con turnOffBuiltInSync, así que no puede
-        // pisar un apagado en vuelo.
+        // Reconciliación continua, SOLO PARA EXTERNOS: una entrada de externo
+        // cuyo display está online Y activo describe algo que ya no está
+        // apagado (p. ej. el enable de willSleep aterrizó pero su remove se
+        // perdió en una carrera). La entrada de la INTERNA es INTOCABLE aquí —
+        // política del núcleo (PantallaCore.h: «la interna no se poda jamás»).
+        // MEDIDO (2026-08-06, dos veces): durante un baile de cables,
+        // CGDisplayIsActive devolvió true para la interna DESACTIVADA (reuso
+        // de ID o transitorio de CG) y borrar su entrada dejó al rescate sin
+        // ancla y a todas las redes desarmadas por el guard de abajo — así se
+        // perdió el panel hasta reiniciar WindowServer. El coste de no
+        // reconciliarla es un icono equivocado hasta relanzar la app;
+        // «Encender pantalla» también limpia la entrada. Corre en workQueue,
+        // serializada con turnOffBuiltInSync: no puede pisar un apagado en vuelo.
         var entries = [pc_state_entry](repeating: pc_state_entry(), count: Int(PC_MAX_DISPLAYS))
         let entryCount = pc_state_read_entries(&entries, UInt32(PC_MAX_DISPLAYS))
-        for e in entries.prefix(Int(entryCount)) {
-            if CGDisplayIsActive(e.id) != 0 {
-                write("reconciliación: \(e.id) está online y activo; su entrada era rancia")
-                pc_state_remove(e.id)
-                notifyChange()
+        if entryCount > 0 {
+            var recOnline = [CGDirectDisplayID](repeating: 0, count: Int(PC_MAX_DISPLAYS))
+            var recN: UInt32 = 0
+            // Si la enumeración falla, no se reconcilia nada: borrar estado con
+            // datos a medias es la dirección insegura.
+            if CGGetOnlineDisplayList(UInt32(PC_MAX_DISPLAYS), &recOnline, &recN) == .success {
+                let onlineSet = Set(recOnline.prefix(Int(recN)))
+                for e in entries.prefix(Int(entryCount)) where !e.was_builtin {
+                    if onlineSet.contains(e.id), CGDisplayIsActive(e.id) != 0 {
+                        // writeProblem, no write: es una anomalía rara (cero
+                        // casos en el log hasta hoy) y merece el contexto; y
+                        // una reconciliación no debe volver a ser jamás la
+                        // última línea antes de un silencio.
+                        writeProblem("reconciliación: externo \(e.id) online y activo; su entrada era rancia")
+                        pc_state_remove(e.id)
+                        notifyChange()
+                    }
+                }
             }
         }
 

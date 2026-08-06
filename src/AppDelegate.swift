@@ -104,17 +104,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func reconcileStaleState() {
-        let disabled = control.disabledByUs()
-        guard !disabled.isEmpty else { return }
+        var entries = [pc_state_entry](repeating: pc_state_entry(), count: Int(PC_MAX_DISPLAYS))
+        let count = pc_state_read_entries(&entries, UInt32(PC_MAX_DISPLAYS))
+        guard count > 0 else { return }
 
         var online = [CGDirectDisplayID](repeating: 0, count: Int(PC_MAX_DISPLAYS))
         var n: UInt32 = 0
         guard CGGetOnlineDisplayList(UInt32(PC_MAX_DISPLAYS), &online, &n) == .success else { return }
         let onlineSet = Set(online.prefix(Int(n)))
 
-        for id in disabled where onlineSet.contains(id) {
-            control.write("estado obsoleto: \(id) vuelve a estar online, limpiando")
-            pc_state_remove(id)
+        for e in entries.prefix(Int(count)) where onlineSet.contains(e.id) {
+            // Para la entrada de la interna, exigir además que el ID siga
+            // siendo un panel integrado: un externo re-registrado puede
+            // reutilizar el ID (medido, 2026-08-06) y no debe costarle el
+            // ancla al rescate.
+            if e.was_builtin && CGDisplayIsBuiltin(e.id) == 0 { continue }
+            control.write("estado obsoleto: \(e.id) vuelve a estar online, limpiando")
+            pc_state_remove(e.id)
         }
     }
 

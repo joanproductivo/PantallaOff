@@ -118,6 +118,17 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   el tamaño físico EDID sí llega. Y `CGDisplayScreenSize` sin EDID devuelve una estimación
   a 72 dpi desde los bounds, **nunca 0** — por eso el predicado compara los mm contra la
   estimación, no contra cero.
+- **`CGDisplayIsActive` puede devolver true para un ID desactivado** (reuso de ID por un
+  externo re-registrado o transitorio de reconfiguración; medido 2026-08-06, dos veces,
+  durante un baile de cables). Ninguna lectura única de CG justifica tocar el estado
+  persistido de la interna: borrar esa entrada desarma TODAS las redes a la vez (rescate,
+  watchdog, acelerador, fast-path y vigía) — así se perdió el panel hasta reiniciar
+  WindowServer.
+- **El proxy `DCPAVServiceProxy` External es por conexión**: muere al desenchufar (a 1 Hz
+  desaparece del registro) y renace con registry ID nuevo al reenchufar. Apagar la interna
+  mata su propio proxy y dispara el vigía (ruido esperado, filtrado por la cuenta). En el
+  instante de la terminación el moribundo puede seguir enumerándose: la cuenta excluye los
+  registry IDs que la notificación declaró muertos.
 - **`hw.model` ya no contiene "Book"** desde 2022 (`Mac15,10`). Para detectar portátil se usa
   la presencia de `AppleSmartBattery`.
 
