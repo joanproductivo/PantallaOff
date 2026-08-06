@@ -26,6 +26,7 @@ devuelve.
 │  Apagar pantalla del MacBook         │  ← toda la idea es esto
 │  ──────────────────────────────────  │
 │  ☐ Mantener el Mac despierto         │
+│  ☐ Dormir al cerrar la tapa          │
 │  ☐ Apagar luz del teclado            │
 │  ──────────────────────────────────  │
 │  ☐ Abrir al iniciar sesión           │
@@ -42,9 +43,14 @@ devuelve.
   Y si quieres, mantener también la pantalla encendida.
 - **Apagar y encender la luz del teclado.** Sólo el interruptor: para graduarla ya están las
   teclas de brillo. Al encenderla te devuelve tu ajuste de brillo automático.
+- **Dormir al cerrar la tapa** (opcional): que cerrar la tapa duerma el Mac aunque esté
+  enchufado con pantalla externa (cuando macOS lo mantendría despierto en clamshell).
+- **Mantener la configuración al despertar/arrancar** (por defecto): si la interna estaba
+  apagada al dormir o apagar el Mac, se vuelve a apagar sola cuando hay un externo
+  utilizable estable. Desactivable en ⌥ → Diagnóstico.
 - **Abrir al iniciar sesión**, si te apetece.
 - **Español e inglés**, conmutables desde el menú y al instante.
-- **Nada más.** Sin temporizadores, sin disparadores, sin panel de control. Cada interruptor
+- **Nada más.** Sin temporizadores, sin panel de control. Cada interruptor
   está a un clic.
 
 ## Instalación
@@ -79,8 +85,13 @@ Busca el icono de portátil en la barra de menú, junto al reloj. La app sigue e
 tu sistema; para cambiarlo, usa **Idioma / Language** al final del menú.
 
 Para activar **Abrir al iniciar sesión**, la app tiene que estar en `/Applications`, que es
-justo donde la deja `make install`. Nunca vuelve a aplicar el apagado al arrancar: abrir
-PantallaOff sólo pone el icono en tu barra de menú.
+justo donde la deja `make install`.
+
+**Tu configuración sobrevive al reposo y a los reinicios.** Si la interna estaba apagada al
+dormir o apagar el Mac, PantallaOff la vuelve a apagar tras despertar o arrancar — sólo
+cuando un externo utilizable lleva unos segundos estable, dentro de una ventana corta, y por
+la misma transacción guardada del clic del menú. Activado por defecto; se desactiva en
+**⌥ → Diagnóstico → Mantener configuración de pantalla al despertar/arrancar**.
 
 ## Cómo se usa
 
@@ -90,13 +101,14 @@ El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla e
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
-**Los interruptores no cierran el menú.** Mantener despierto, luz del teclado, abrir al
-iniciar sesión y el idioma se aplican en el sitio: el menú se queda abierto y se re-etiqueta
-solo. Las acciones que tocan pantallas sí lo cierran, como debe ser.
+**Los interruptores no cierran el menú.** Mantener despierto, dormir al cerrar la tapa, luz
+del teclado, abrir al iniciar sesión y el idioma se aplican en el sitio: el menú se queda
+abierto y se re-etiqueta solo. Las acciones que tocan pantallas sí lo cierran, como debe ser.
 
 **Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
-pantallas, *Abrir el registro*, *Registro detallado* y *Forzar reactivación de todas las
-pantallas*. Nada de eso hace falta en el uso normal — la app sólo apaga una pantalla, así que
+pantallas, la versión de la app, *Abrir el registro*, *Registro detallado*, el interruptor
+*Mantener configuración de pantalla al despertar/arrancar* y *Forzar reactivación de todas
+las pantallas*. Nada de eso hace falta en el uso normal — la app sólo apaga una pantalla, así que
 "reactivar todas" hace lo mismo que el interruptor de siempre. Está ahí para cuando algo va
 mal.
 
@@ -183,9 +195,11 @@ Los tres modos de fallo observados están cubiertos:
 | CG se queda callado (zombi puro) | Vigía IOKit | ~10 s |
 | Cierras la tapa / duermes el Mac | Encendido preventivo antes de dormir | antes de dormir |
 
-Una regla lo sostiene todo: **ninguna ruta automática puede apagar jamás una pantalla.** El
-vigilante, el manejador de despertar y todos los callbacks sólo pueden *encender*. Apagar
-siempre requiere un clic.
+Una regla lo sostiene todo: **ninguna ruta automática puede apagar jamás una pantalla** — con
+una única excepción acotada: la restauración re-aplica *tu propio* clic anterior tras
+despertar o arrancar, por la misma transacción guardada, y sólo con un externo utilizable
+estable. El vigilante, el manejador de despertar y todos los callbacks sólo pueden
+*encender*.
 
 ---
 
@@ -251,7 +265,8 @@ make status   # estado de pantallas + dead-man
 ```
 src/PantallaCore.{h,c}    el predicado de seguridad, mutación, estado, rescate — una sola implementación
 src/Bridge.h              expone el núcleo C a Swift
-src/DisplayControl.swift  watchdog, vigía IOKit, dead-man, registro
+src/DisplayControl.swift  watchdog, vigía IOKit, dead-man, restauración P1-R, registro
+src/LidSleep.swift        dormir al cerrar la tapa (vigía clamshell, APIs públicas)
 src/KeepAwake.swift       mantener despierto (IOPMAssertion — API pública)
 src/KeyboardLight.swift   luz del teclado (CoreBrightness, privada)
 src/L10n.swift            cadenas en español e inglés

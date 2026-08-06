@@ -25,6 +25,7 @@ you were running a single display. Windows stop wandering there. One click bring
 │  Turn off MacBook display            │  ← that's the whole idea
 │  ──────────────────────────────────  │
 │  ☐ Keep the Mac awake                │
+│  ☐ Sleep when the lid closes         │
 │  ☐ Turn off keyboard backlight       │
 │  ──────────────────────────────────  │
 │  ☐ Open at login                     │
@@ -41,9 +42,14 @@ you were running a single display. Windows stop wandering there. One click bring
   keep the screen on too.
 - **Turn the keyboard backlight off and on.** Just the switch — the brightness keys already
   handle the rest. It gives you your auto-brightness setting back when you turn it on again.
+- **Sleep when the lid closes** (optional): make closing the lid sleep the Mac even when
+  plugged in with an external display (when macOS would keep it awake in clamshell mode).
+- **Keep your display setup across sleep and reboots** (on by default): if the built-in was
+  off when the Mac slept or shut down, it goes off again once a usable external display is
+  stable. Can be turned off under ⌥ → Diagnostics.
 - **Start at login**, if you want it.
 - **English and Spanish**, switchable from the menu, applied instantly.
-- **Nothing else.** No timers, no triggers, no dashboard. Every switch is one click deep.
+- **Nothing else.** No timers, no dashboard. Every switch is one click deep.
 
 ## Install
 
@@ -76,8 +82,13 @@ Look for the laptop icon in the menu bar, next to the clock. The app follows you
 language; to change it, use **Idioma / Language** at the bottom of the menu.
 
 To enable **Open at login**, the app must live in `/Applications`, which is where
-`make install` puts it. It never re-applies the "off" state at startup: launching PantallaOff
-only puts the icon in your menu bar.
+`make install` puts it.
+
+**Your setup survives sleep and reboots.** If the built-in display was off when the Mac went
+to sleep or shut down, PantallaOff turns it off again after wake or startup — but only once a
+usable external display has been stable for a few seconds, within a short window, and through
+the same guarded transaction as the menu click. On by default; turn it off under
+**⌥ → Diagnostics → Keep display setup after wake/startup**.
 
 ## Using it
 
@@ -87,12 +98,13 @@ The item is greyed out with a reason when it wouldn't be safe — no usable exte
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
-**Toggles don't close the menu.** Keep awake, keyboard backlight, open at login and the
-language switch apply in place — the menu stays open and relabels itself. Actions that
+**Toggles don't close the menu.** Keep awake, sleep-on-lid-close, keyboard backlight, open at
+login and the language switch apply in place — the menu stays open and relabels itself. Actions that
 change your displays still close it, as they should.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
-state, *Open the log*, *Verbose logging* and *Force re-enable all displays*. None of it is
+state, the app version, *Open the log*, *Verbose logging*, the *Keep display setup after
+wake/startup* toggle and *Force re-enable all displays*. None of it is
 needed in normal use — the app only ever turns off one screen, so "re-enable all" does the
 same thing as the regular toggle. It's there for when something goes wrong.
 
@@ -176,9 +188,10 @@ The three observed failure modes are each covered:
 | CG stays silent (pure zombie) | IOKit watcher | ~10 s |
 | You close the lid / sleep the Mac | Pre-emptive re-enable before sleep | before sleeping |
 
-One rule ties it together: **no automatic path may ever turn a display off.** The watchdog,
-the wake handler and every callback can only turn displays *on*. Turning one off always takes
-a click.
+One rule ties it together: **no automatic path may ever turn a display off** — with a single
+scoped exception: the restore feature re-applies *your own* previous click after wake or
+startup, through the same guarded transaction, and only with a stable usable external
+display. The watchdog, the wake handler and every callback can only turn displays *on*.
 
 ---
 
@@ -242,7 +255,8 @@ make status   # display state + dead-man status
 ```
 src/PantallaCore.{h,c}    the safety predicate, mutation, state, rescue — one implementation
 src/Bridge.h              exposes the C core to Swift
-src/DisplayControl.swift  watchdog, IOKit watcher, dead-man, logging
+src/DisplayControl.swift  watchdog, IOKit watcher, dead-man, restore-after-wake, logging
+src/LidSleep.swift        sleep when the lid closes (clamshell watcher, public APIs)
 src/KeepAwake.swift       keep awake (IOPMAssertion — public API)
 src/KeyboardLight.swift   keyboard backlight (CoreBrightness, private)
 src/L10n.swift            English/Spanish strings

@@ -237,13 +237,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             menu.addItem(lidItem)
             refs.lidRow = lidRow
-
-            let (restItem, restRow) = stayOpenRow(title: s.restoreOff,
-                                                  checked: DisplayControl.restoreOffEnabled) { [weak self] in
-                self?.toggleRestoreOff()
-            }
-            menu.addItem(restItem)
-            refs.restoreRow = restRow
         }
 
         // Luz del teclado: sólo si este Mac tiene teclado retroiluminado.
@@ -259,9 +252,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         // Arranque al iniciar sesión. Seguro porque la app no apaga nada por
-        // su cuenta (P1; la única excepción, la restauración P1-R, es opt-in,
-        // re-aplica una decisión previa del usuario y exige externo utilizable
-        // estable): arrancar sola sólo pone el icono en la barra.
+        // su cuenta (P1; la única excepción, la restauración P1-R —
+        // desactivable en Diagnóstico — re-aplica una decisión previa del
+        // usuario y exige externo utilizable estable): arrancar sola sólo
+        // pone el icono en la barra.
         switch LoginItem.state {
         case .enabled, .disabled:
             let (li, row) = stayOpenRow(title: s.openAtLogin,
@@ -330,6 +324,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(vi)
         refs.verboseRow = vRow
         diag.append(vi)
+
+        // La restauración P1-R va por defecto: su interruptor vive aquí, bajo
+        // ⌥, para quien quiera desactivarla — no en el menú principal.
+        if pc_is_laptop() {
+            let (restItem, restRow) = stayOpenRow(title: s.restoreOff,
+                                                  checked: DisplayControl.restoreOffEnabled) { [weak self] in
+                self?.toggleRestoreOff()
+            }
+            menu.addItem(restItem)
+            refs.restoreRow = restRow
+            diag.append(restItem)
+        }
 
         let force = item(s.forceReenable, #selector(turnOn), enabled: true)
         menu.addItem(force)
@@ -520,7 +526,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !DisplayControl.restoreOffEnabled {
             control.cancelRestoreIntent(reason: "interruptor desactivado")
         }
-        control.write("restaurar el apagado: \(DisplayControl.restoreOffEnabled ? "activado" : "desactivado")")
+        control.write("mantener configuración de pantalla: \(DisplayControl.restoreOffEnabled ? "activado" : "desactivado")")
         refresh()
     }
 

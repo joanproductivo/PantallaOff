@@ -3,7 +3,8 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 App de barra de menú para macOS que **desactiva la pantalla interna del MacBook** (Apple
-Silicon, macOS 13+), más mantener despierto, luz del teclado y arranque al inicio.
+Silicon, macOS 13+), más mantener despierto, dormir al cerrar la tapa, restauración del
+apagado al despertar/arrancar (P1-R), luz del teclado y arranque al inicio.
 Swift + AppKit sobre un núcleo en C, compilado con Command Line Tools — **sin Xcode**.
 
 El código, los comentarios y los mensajes de commit están en **español**. La interfaz es
@@ -82,8 +83,9 @@ Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre proceso
 Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
 
 - **P1 — fail-open.** *Ninguna ruta automática puede DESACTIVAR un display*, con UNA
-  excepción acotada (P1-R): la **restauración opt-in** («Restaurar el apagado al despertar o
-  arrancar», desactivada por defecto), que re-aplica una decisión explícita previa del
+  excepción acotada (P1-R): la **restauración** («Mantener configuración de pantalla al
+  despertar/arrancar», activada por defecto, desactivable en ⌥ → Diagnóstico), que
+  re-aplica una decisión explícita previa del
   usuario tras despertar o arrancar, reutilizando la transacción completa del menú
   (precondición + P5 + dead-man + postcondición), exigiendo el MISMO externo utilizable
   ≥5 s (continuidad por ID) y ≥5 s sin reconfiguraciones, dentro de una ventana de 60 s

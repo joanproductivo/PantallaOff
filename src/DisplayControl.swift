@@ -281,7 +281,7 @@ final class DisplayControl {
         }
 
         // Despertar: comprobar y, si hace falta, ENCENDER. El único re-apagado
-        // posible es la restauración opt-in P1-R, que NO corre aquí: abre una
+        // posible es la restauración P1-R (desactivable), que NO corre aquí: abre una
         // ventana y exige el mismo externo utilizable ≥5 s sin
         // reconfiguraciones antes de re-aplicar por la transacción completa
         // del menú — ésa es la respuesta a la carrera de re-enumeración (tarda
@@ -584,15 +584,19 @@ final class DisplayControl {
         }
     }
 
-    // MARK: - Restauración del apagado (P1-R, opt-in)
+    // MARK: - Restauración del apagado (P1-R)
     //
     // Excepción acotada de P1 (ver CLAUDE.md): re-aplicar tras despertar o
     // arrancar una decisión explícita PREVIA del usuario, por la MISMA
     // transacción del menú (precondición + P5 + dead-man + postcondición).
-    // Desactivada por defecto.
+    // Activada por defecto (decisión de Joan tras la verificación en
+    // hardware); se desactiva desde ⌥ → Diagnóstico.
 
     static var restoreOffEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: "restoreOffEnabled") }
+        get {
+            // Sin valor guardado: activada. bool(forKey:) devolvería false.
+            UserDefaults.standard.object(forKey: "restoreOffEnabled") as? Bool ?? true
+        }
         set { UserDefaults.standard.set(newValue, forKey: "restoreOffEnabled") }
     }
 
