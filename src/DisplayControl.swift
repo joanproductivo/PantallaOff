@@ -430,6 +430,7 @@ final class DisplayControl {
 
     private func ioProxyTerminated(iterator: io_iterator_t) {
         var saw = false
+        var externalDied = false
         var svc = IOIteratorNext(iterator)
         while svc != 0 {
             saw = true
@@ -437,6 +438,17 @@ final class DisplayControl {
             if IORegistryEntryGetRegistryEntryID(svc, &eid) == KERN_SUCCESS {
                 deadProxyIDs.insert(eid)
             }
+            // Location del moribundo. Sólo cuenta como Embedded si se LEE
+            // positivamente: una Location ilegible se trata como External
+            // (ruta zombi) — clasificar de menos es la dirección insegura,
+            // perdería la ventana del último cable.
+            var embedded = false
+            if let cf = IORegistryEntryCreateCFProperty(svc, "Location" as CFString,
+                                                        kCFAllocatorDefault, 0),
+               let loc = cf.takeRetainedValue() as? String, loc == "Embedded" {
+                embedded = true
+            }
+            if !embedded { externalDied = true }
             IOObjectRelease(svc)
             svc = IOIteratorNext(iterator)
         }
@@ -445,13 +457,28 @@ final class DisplayControl {
         guard pc_state_builtin_disabled() else { return }
         pc_log_str("iokit: conexión de vídeo terminada con la interna apagada")
 
-        // MEDIDO (2026-08-06): el proxy External es POR CONEXIÓN (muere al
-        // desenchufar, renace con registry ID nuevo al reenchufar), y apagar
-        // la interna mata su propio proxy disparando esta notificación con el
-        // externo vivo — por eso la cuenta importa. Pero en el instante de la
-        // terminación no hay garantía de que el moribundo ya no se enumere:
-        // excluir los muertos declarados por la notificación evita que el
-        // vigía se calle en el verdadero último cable.
+        // MEDIDO (2026-08-06, gafas VR): un display VIRTUAL no tiene
+        // DCPAVServiceProxy — es visible para CG e invisible para este canal.
+        // Apagar la interna mata su propio proxy Embedded, y con sólo un
+        // virtual como externo la cuenta física daba 0: el vigía reencendía
+        // dentro de nuestra PROPIA transacción (fuego amigo, dos veces en el
+        // log). Sin ningún External muerto no hubo desenchufe físico y el
+        // zombi de esta terminación es imposible: no hay urgencia, así que la
+        // comprobación se delega al watchdog en workQueue — serializada
+        // DETRÁS de la transacción en vuelo, ve la topología asentada (el
+        // virtual cuenta como utilizable) y sólo enciende si de verdad no
+        // queda salida. Nada de CG en ioQueue: una llamada bloqueada aquí
+        // retrasaría la siguiente terminación física real.
+        guard externalDied else {
+            pc_log_str("iokit: terminación embedded; sin desenchufe físico, se delega al watchdog")
+            evaluateSafety(trigger: "iokit-embedded")
+            return
+        }
+
+        // Desenchufe físico: el zombi manda — no se consulta CG. En el
+        // instante de la terminación no hay garantía de que el moribundo ya
+        // no se enumere: excluir los muertos declarados por la notificación
+        // evita que el vigía se calle en el verdadero último cable.
         if externalProxyCount(excluding: deadProxyIDs) > 0 {
             pc_log_str("iokit: queda otra conexión externa viva; no se actúa")
             return

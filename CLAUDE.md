@@ -138,6 +138,12 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   mata su propio proxy y dispara el vigía (ruido esperado, filtrado por la cuenta). En el
   instante de la terminación el moribundo puede seguir enumerándose: la cuenta excluye los
   registry IDs que la notificación declaró muertos.
+- **Un display virtual no tiene `DCPAVServiceProxy`** (medido 2026-08-06, gafas VR en modo
+  extendido): es visible para CG e invisible para el canal IOKit. Con sólo un virtual como
+  externo, apagar la interna dejaba la cuenta física en 0 y el vigía reencendía dentro de
+  la propia transacción (fuego amigo). Por eso la terminación solo-Embedded (Location
+  leída positivamente) no actúa en ioQueue: delega en el watchdog, que ve la topología
+  asentada.
 - **`hw.model` ya no contiene "Book"** desde 2022 (`Mac15,10`). Para detectar portátil se usa
   la presencia de `AppleSmartBattery`.
 
