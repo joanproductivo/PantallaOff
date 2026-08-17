@@ -1,7 +1,8 @@
 # Web de PantallaOff
 
-Sitio estático bilingüe (inglés en `/`, español en `/es/`). HTML, CSS y JavaScript de vainilla,
-sin dependencias, sin compilación y sin nada que instalar: son ficheros que se suben tal cual.
+Sitio estático bilingüe (inglés en `/`, español en `/es/`) publicado en
+**<https://pantallaoff.joanproductivo.com>**. HTML, CSS y JavaScript de vainilla, sin
+dependencias, sin compilación y sin nada que instalar: son ficheros que se sirven tal cual.
 
 ```
 docs/
@@ -15,28 +16,47 @@ docs/
   robots.txt · sitemap.xml · .nojekyll
 ```
 
-## AL PUBLICAR EN UN DOMINIO PROPIO: cambia la URL base
+## Cómo se publica
 
-Las URLs absolutas (canonical, hreflang, Open Graph, JSON-LD, sitemap y robots) apuntan hoy a
-`https://joanproductivo.github.io/PantallaOff/`, que es donde funcionan sin tocar nada. **Si
-publicas en otro dominio hay que sustituirla**, o Google indexará el dominio equivocado:
+Está en Dokploy, en la aplicación `PantallaOff` del proyecto `wordpress`
+(`wordpress-pantallaoff-hhlnhm`). La configuración que hace que se publique **sólo esta
+carpeta** y no el resto del repositorio:
+
+| Ajuste | Valor | Por qué |
+|---|---|---|
+| Source | GitHub · `joanproductivo/PantallaOff` · rama `main` | |
+| Build path | `/` | la raíz del repositorio es el contexto de compilación |
+| Build type | **Static** | nginx sirviendo ficheros, sin runtime ni build step |
+| **Publish directory** | **`docs`** | **la clave: sólo se sirve esta carpeta** |
+| SPA mode | desactivado | `/es/` es un directorio real, y un 404 debe ser un 404 |
+| Dominio | `pantallaoff.joanproductivo.com` · puerto 80 · HTTPS con Let's Encrypt | |
+
+Dokploy clona el repositorio entero (no hay forma de clonar media rama), pero la imagen que
+acaba corriendo sólo contiene `docs/`. El código de la app, el `Makefile` y las herramientas
+no se publican en ningún momento.
+
+**El despliegue es automático**: `autoDeploy` está activado, así que cada `git push` a `main`
+reconstruye y republica el sitio. No hace falta tocar Dokploy para actualizar la web.
+
+Ojo con eso: un push que sólo toque el código de la app también dispara un redespliegue de la
+web. Es inofensivo — el resultado es idéntico — pero explica por qué aparecen despliegues que
+no tienen nada que ver con `docs/`.
+
+## Si algún día cambia el dominio
+
+Las URLs absolutas (canonical, hreflang, Open Graph, JSON-LD, sitemap y robots) apuntan a
+`https://pantallaoff.joanproductivo.com/`. **Hay que sustituirlas si el dominio cambia**, o
+Google indexará el dominio equivocado:
 
 ```bash
-grep -rl 'joanproductivo.github.io/PantallaOff' docs \
-  | xargs sed -i '' 's|https://joanproductivo.github.io/PantallaOff/|https://TU-DOMINIO.com/|g'
+grep -rl 'pantallaoff.joanproductivo.com' docs \
+  | xargs sed -i '' 's|https://pantallaoff.joanproductivo.com/|https://TU-DOMINIO.com/|g'
 ```
 
-Las rutas de los recursos son relativas a propósito, así que el sitio funciona igual en la raíz
-de un dominio, en un subdirectorio o abriendo los ficheros en local. Lo único absoluto es lo
-que los buscadores exigen absoluto.
-
-Si sirves desde un dominio propio con GitHub Pages, añade también un fichero `CNAME` en esta
-carpeta con el dominio dentro (una línea, sin `https://`).
-
-## Publicar en GitHub Pages
-
-Ajustes del repositorio → Pages → Source: *Deploy from a branch* → rama `main`, carpeta
-`/docs`. El `.nojekyll` está para que Pages sirva la carpeta tal cual, sin pasarla por Jekyll.
+Y en Dokploy, cambiar el `host` del dominio de la aplicación. Las rutas de los recursos son
+relativas a propósito, así que el sitio funciona igual en la raíz de un dominio, en un
+subdirectorio o abriendo los ficheros en local: lo único absoluto es lo que los buscadores
+exigen absoluto.
 
 ## Verla en local
 
