@@ -42,6 +42,26 @@ Ojo con eso: un push que sólo toque el código de la app también dispara un re
 web. Es inofensivo — el resultado es idéntico — pero explica por qué aparecen despliegues que
 no tienen nada que ver con `docs/`.
 
+## ⚠ Si tocas `styles.css` o `app.js`, sube el `?v=`
+
+Medido en producción: nginx sirve los recursos estáticos con
+`cache-control: max-age=16070400` (186 días) y Cloudflare los cachea en el borde
+(`cf-cache-status: HIT`). El HTML no se cachea (`DYNAMIC`), así que se actualiza al
+instante — pero el CSS y el JavaScript **no**.
+
+Sin más, eso significa que una versión nueva del sitio se serviría con la hoja de estilos
+vieja durante meses: HTML nuevo, CSS antiguo, la web rota y sin pista de por qué. Por eso
+los dos ficheros se enlazan con una versión en la URL:
+
+```html
+<link rel="stylesheet" href="assets/styles.css?v=1">
+<script src="assets/app.js?v=1" defer></script>
+```
+
+**Cambia el fichero → sube el número** (en los dos idiomas). La URL nueva es una URL que
+nadie tiene cacheada, y la caché larga pasa de problema a ventaja. Si cambias `icon.svg`
+o las tarjetas `og.*`, mismo truco o espera a que expire.
+
 ## Si algún día cambia el dominio
 
 Las URLs absolutas (canonical, hreflang, Open Graph, JSON-LD, sitemap y robots) apuntan a
