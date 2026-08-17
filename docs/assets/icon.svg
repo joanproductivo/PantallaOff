@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="PantallaOff">
+  <!-- El mismo dibujo que tools/make-icon.swift, sobre el lienzo de 1024. -->
+  <defs>
+    <linearGradient id="po-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#293347"/>
+      <stop offset="1" stop-color="#0d0f17"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#po-bg)"
+        stroke="rgba(255,255,255,.10)" stroke-width="3"/>
+  <!-- Carcasa de la pantalla -->
+  <rect x="232" y="222" width="560" height="380" rx="26" fill="#edf2f7"/>
+  <!-- Panel apagado -->
+  <rect x="262" y="252" width="500" height="320" rx="10" fill="#0d0f17"/>
+  <!-- Base: trapecio, para que se lea «portátil» y no «monitor» -->
+  <path d="M136 648 L888 648 L786 602 L238 602 Z" fill="#edf2f7"/>
+  <!-- Barra diagonal: lo único que sobrevive a 16 px -->
+  <path d="M300 724 L724 300" stroke="#0d0f17" stroke-width="108" stroke-linecap="round"/>
+  <path d="M300 724 L724 300" stroke="#ff6b61" stroke-width="62" stroke-linecap="round"/>
+</svg>

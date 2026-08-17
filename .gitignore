@@ -2,3 +2,6 @@ build/
 *.o
 *.d
 .DS_Store
+
+# Configuración local del agente/editor.
+.claude/

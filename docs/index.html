@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en" data-lang="en"
+      data-copy="Copy" data-copied="Copied"
+      data-menu-off="Turn off MacBook display"
+      data-menu-on="Turn on MacBook display">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PantallaOff — Turn off your MacBook display without closing the lid</title>
+<meta name="description" content="Free menu bar app for macOS that turns off your MacBook's built-in display with one click, while you keep using the keyboard, trackpad and Touch ID. Open source, Apple Silicon, macOS 13+.">
+<meta name="author" content="Joan Planas">
+<meta name="theme-color" content="#0b0d14">
+<meta name="color-scheme" content="dark">
+
+<link rel="canonical" href="https://joanproductivo.github.io/PantallaOff/">
+<link rel="alternate" hreflang="en" href="https://joanproductivo.github.io/PantallaOff/">
+<link rel="alternate" hreflang="es" href="https://joanproductivo.github.io/PantallaOff/es/">
+<link rel="alternate" hreflang="x-default" href="https://joanproductivo.github.io/PantallaOff/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PantallaOff">
+<meta property="og:locale" content="en_GB">
+<meta property="og:locale:alternate" content="es_ES">
+<meta property="og:title" content="PantallaOff — Turn off your MacBook display without closing the lid">
+<meta property="og:description" content="One click and the built-in screen is genuinely gone — not dimmed. Keyboard, trackpad and Touch ID keep working. Free and open source.">
+<meta property="og:url" content="https://joanproductivo.github.io/PantallaOff/">
+<meta property="og:image" content="https://joanproductivo.github.io/PantallaOff/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="PantallaOff — turn off your MacBook display without closing the lid">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PantallaOff — Turn off your MacBook display without closing the lid">
+<meta name="twitter:description" content="One click and the built-in screen is genuinely gone — not dimmed. Keyboard, trackpad and Touch ID keep working. Free and open source.">
+<meta name="twitter:image" content="https://joanproductivo.github.io/PantallaOff/assets/og.jpg">
+
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="./" aria-label="PantallaOff — home">
+      <img src="assets/icon.svg" width="32" height="32" alt="" aria-hidden="true">
+      <span>PantallaOff</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#why">Why</a>
+      <a href="#features">Features</a>
+      <a href="#safety">Safety</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a class="lang-switch" href="es/" hreflang="es" lang="es" title="Ver en español">ES</a>
+      <a class="btn btn-ghost nav-github" href="https://github.com/joanproductivo/PantallaOff" rel="noopener">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ─────────────────────────────  HERO  ───────────────────────────── -->
+<section class="hero">
+  <div class="wrap hero-grid">
+
+    <div class="hero-copy">
+      <p class="eyebrow">Menu bar app · macOS</p>
+      <h1>Turn off your MacBook display.<br><span class="accent">Without closing the lid.</span></h1>
+      <p class="lede">
+        You're working on an external monitor, watching a film on the TV, or wearing a VR headset.
+        The laptop screen below is doing nothing useful: it splits your attention, swallows your
+        windows and burns battery. PantallaOff makes it <strong>genuinely disappear</strong> — not
+        dimmed, gone. One click brings it back.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn btn-primary btn-lg" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">
+          <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 1.5a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 8.03a.75.75 0 0 1 1.06-1.06l2.47 2.47V2.25A.75.75 0 0 1 8 1.5ZM2.75 12.5a.75.75 0 0 1 .75.75v.25h9v-.25a.75.75 0 0 1 1.5 0v.5A1.25 1.25 0 0 1 12.75 15h-9.5A1.25 1.25 0 0 1 2 13.75v-.5a.75.75 0 0 1 .75-.75Z"/></svg>
+          Download for macOS
+        </a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/joanproductivo/PantallaOff" rel="noopener">Read the source</a>
+      </div>
+
+      <ul class="badges" aria-label="Requirements and licence">
+        <li>Apple Silicon</li>
+        <li>macOS 13+</li>
+        <li>Free · MIT</li>
+        <li><span class="version-badge" id="version-badge">v1.2.1</span></li>
+      </ul>
+      <p class="fineprint">No account. No telemetry. No network access. Every line is on GitHub.</p>
+    </div>
+
+    <!-- Illustration + interactive menu replica -->
+    <div class="hero-demo">
+      <div class="stage" id="stage" role="img"
+           aria-label="A MacBook in front of an external monitor. When the app turns the built-in display off, the laptop panel goes black and its window moves up to the monitor.">
+        <div class="monitor">
+          <div class="mon-screen">
+            <span class="win win-1"></span>
+            <span class="win win-2"></span>
+            <span class="win win-moved"></span>
+          </div>
+          <div class="mon-neck"></div>
+          <div class="mon-foot"></div>
+        </div>
+        <div class="macbook">
+          <div class="mb-lid">
+            <div class="mb-screen"><span class="win win-3"></span></div>
+          </div>
+          <div class="mb-base"><span class="mb-notch"></span></div>
+          <div class="mb-glow"></div>
+        </div>
+      </div>
+
+      <div class="menu" id="menu">
+        <div class="menu-bar">
+          <img src="assets/icon.svg" width="15" height="15" alt="" aria-hidden="true">
+          <span class="menu-bar-time">9:41</span>
+        </div>
+        <button type="button" class="menu-item menu-primary" id="menu-toggle" aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span>
+          <span class="menu-label">Turn off MacBook display</span>
+        </button>
+        <hr>
+        <button type="button" class="menu-item" data-toggle aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Keep the Mac awake</span>
+        </button>
+        <button type="button" class="menu-item" data-toggle aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Sleep when the lid closes</span>
+        </button>
+        <button type="button" class="menu-item" data-toggle data-kb aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Turn off keyboard backlight</span>
+        </button>
+        <hr>
+        <button type="button" class="menu-item" data-toggle aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Open at login</span>
+        </button>
+        <hr>
+        <span class="menu-item is-static"><span class="menu-check" aria-hidden="true"></span><span class="menu-label">Quit PantallaOff</span></span>
+        <span class="menu-item is-static"><span class="menu-check" aria-hidden="true"></span><span class="menu-label">Idioma / Language<em class="menu-arrow">›</em></span></span>
+      </div>
+      <p class="demo-hint">↑ It's a real replica. Click the top item.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─────────────────────────────  WHY  ───────────────────────────── -->
+<section class="section" id="why">
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <h2 class="section-title">It isn't that the screen is bright.<br>It's that it's <em>there</em>.</h2>
+    <p class="section-lede">
+      Four small costs you've stopped noticing, every one of them paid by a panel you aren't using.
+    </p>
+
+    <div class="grid grid-4 reveal">
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4v16M4 8h4M16 8h4M4 16h4M16 16h4"/></svg>
+        </div>
+        <h3>Your attention splits</h3>
+        <p>Two screens, one task. Your eyes keep checking a panel that has nothing to do with what you're doing.</p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="12" height="9" rx="1.5"/><path d="M9 20h11a1 1 0 0 0 1-1v-7M13 16l4 4-4 4" transform="translate(0,-4)"/></svg>
+        </div>
+        <h3>Windows wander down there</h3>
+        <p>Apps launch there, dialogs appear there, and full-screen video escapes there mid-scene.</p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+        </div>
+        <h3>It lights the room</h3>
+        <p>Watching a film in the dark, the panel under your monitor is the brightest thing in it.</p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M21 10v4"/><path d="M9 9.5 6.5 13H10l-2 3"/></svg>
+        </div>
+        <h3>It costs battery</h3>
+        <p>A lit display you never look at is the easiest watts you will ever save.</p>
+      </article>
+    </div>
+
+    <div class="callout reveal">
+      <h3>“Can't I just close the lid?”</h3>
+      <p>
+        You can — and then you lose the keyboard, the trackpad and Touch ID, and your Mac is stuck in
+        clamshell mode. If you're halfway through a film, closing the lid isn't even on the table.
+        PantallaOff leaves the whole machine usable and turns off <em>only the panel</em>.
+      </p>
+    </div>
+
+    <!-- Comparison -->
+    <div class="table-scroll reveal">
+      <table class="compare">
+        <caption>Three ways to deal with the screen below you</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr-only">What you get</span></th>
+            <th scope="col">Brightness at zero</th>
+            <th scope="col">Closing the lid</th>
+            <th scope="col" class="is-us">PantallaOff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">The panel is actually off</th><td class="no">No — still faintly lit</td><td class="yes">Yes</td><td class="yes is-us">Yes</td></tr>
+          <tr><th scope="row">Windows stop opening there</th><td class="no">No</td><td class="yes">Yes</td><td class="yes is-us">Yes</td></tr>
+          <tr><th scope="row">Keyboard and trackpad keep working</th><td class="yes">Yes</td><td class="no">No</td><td class="yes is-us">Yes</td></tr>
+          <tr><th scope="row">Touch ID keeps working</th><td class="yes">Yes</td><td class="no">No</td><td class="yes is-us">Yes</td></tr>
+          <tr><th scope="row">Usable mid-film, on battery, anywhere</th><td class="yes">Yes</td><td class="no">No</td><td class="yes is-us">Yes</td></tr>
+          <tr><th scope="row">Back in one click</th><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes is-us">Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  FEATURES  ───────────────────────────── -->
+<section class="section section-alt" id="features">
+  <div class="wrap">
+    <p class="eyebrow">What you get</p>
+    <h2 class="section-title">The whole app is one menu.</h2>
+    <p class="section-lede">
+      No timers, no dashboard, no preferences window. Every switch is one click deep — and the
+      toggles apply in place, so the menu stays open and relabels itself.
+    </p>
+
+    <div class="grid grid-3 reveal">
+      <article class="card feature">
+        <span class="feature-num">01</span>
+        <h3>Turn the built-in off and on</h3>
+        <p>The first item in the menu. macOS then behaves as if you had a single display — because as far as it's concerned, you do.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">02</span>
+        <h3>Keep your Mac awake</h3>
+        <p>The essential half of Amphetamine, as a single switch. Optionally keep the screen on too, for a dashboard or a long render.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">03</span>
+        <h3>Keyboard backlight off</h3>
+        <p>Just the switch — the brightness keys already handle the rest. Turn it back on and you get your auto-brightness setting back.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">04</span>
+        <h3>Sleep when the lid closes</h3>
+        <p>Optional. Makes closing the lid actually sleep the Mac, even plugged in with an external display, where macOS would keep it awake.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">05</span>
+        <h3>Your setup survives sleep and reboots</h3>
+        <p>If the built-in was off when the Mac slept or shut down, it goes off again — but only once a usable external display has been stable for a few seconds. On by default, and you can turn it off.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">06</span>
+        <h3>English and Spanish, plus start at login</h3>
+        <p>The language switches from the menu and applies instantly. Opening at login is one more switch, if you want it.</p>
+      </article>
+    </div>
+
+    <div class="note reveal">
+      <strong>Works with anything that counts as a second screen:</strong> an external monitor, a TV
+      over HDMI, a Sidecar iPad, or a VR headset in extended mode. Virtual displays are supported
+      natively — that case is measured, not assumed.
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  SAFETY  ───────────────────────────── -->
+<section class="section" id="safety">
+  <div class="wrap">
+    <p class="eyebrow">Trust</p>
+    <h2 class="section-title">A tool that disables a display has exactly one way to fail.</h2>
+    <p class="section-lede">
+      So the whole app is built around that one failure. Nothing below is a design intention —
+      it was all measured on real hardware, and several of the findings contradict Apple's own
+      documentation.
+    </p>
+
+    <div class="grid grid-2 reveal">
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Rule 1</span> No automatic path can turn a screen off</h3>
+        <p>
+          Only your click can. The watchdog, the wake handler and every system callback are allowed
+          to turn displays <em>on</em> — never off. There is exactly one scoped exception, and it's
+          the one you asked for: re-applying <em>your own</em> previous choice after wake or startup,
+          through the same guarded transaction. You can switch it off.
+        </p>
+      </article>
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Rule 2</span> The display's ID hits the disk before the display is touched</h3>
+        <p>
+          A disabled display vanishes from the system — it leaves macOS's own display list, and even
+          System Information. The only way back is an ID that something remembered first. So it's
+          written to disk, with <code>fsync</code>, <em>before</em> anything is switched off.
+        </p>
+      </article>
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Rule 3</span> The recovery watchdog is a separate process</h3>
+        <p>
+          It's spawned outside the app and reparented to launchd, so it survives even a
+          <code>kill -9</code> of PantallaOff itself. That matters, because macOS's documented
+          “revert when the app exits” behaviour was tested here — and it does not revert this
+          particular setting.
+        </p>
+      </article>
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Rule 4</span> It refuses when it wouldn't be safe</h3>
+        <p>
+          No usable external display, or your built-in is currently the <em>source</em> of a mirror
+          set? The menu item is greyed out and tells you why. The app would rather do nothing than
+          leave you with no screen at all.
+        </p>
+      </article>
+    </div>
+
+    <div class="zombie reveal">
+      <p class="eyebrow">The bug nobody had written down</p>
+      <h3>When you unplug the monitor, macOS doesn't always notice</h3>
+      <p>
+        With the built-in display off, physically unplugging the external monitor <strong>never
+        reaches CoreGraphics</strong>. macOS keeps reporting a monitor that is sitting on your desk,
+        disconnected. Any watchdog built on the normal display APIs is structurally blind to it —
+        it cannot see the problem. Here is the app's own heartbeat catching it:
+      </p>
+<pre class="log" aria-label="Log excerpt showing the disconnected monitor still being reported"><code>23:17:07  cg-ve: 2[ext,act] usables=1     <span class="c">← cable connected</span>
+23:17:40  cg-ve: 2[ext,act] usables=1     <span class="c">← CABLE UNPLUGGED — no change</span>
+23:17:56  cg-ve: 22[ext,act]              <span class="c">← reconnected: new ID</span></code></pre>
+      <p>
+        The fix was to stop asking the display system and start listening to IOKit, which
+        <em>does</em> see the cable leave — and to act inside the narrow window where re-enabling the
+        panel still works. Three different disconnect behaviours were observed; all three are
+        covered.
+      </p>
+      <div class="table-scroll">
+        <table class="compare compact">
+          <thead><tr><th scope="col">What happens when you unplug</th><th scope="col">Caught by</th><th scope="col">Latency</th></tr></thead>
+          <tbody>
+            <tr><td>The system re-registers the monitor under a new ID</td><td>Accelerator</td><td class="yes">Instant</td></tr>
+            <tr><td>The system processes the removal properly</td><td>Reconfiguration callback</td><td class="yes">Instant</td></tr>
+            <tr><td>The system stays silent (the case above)</td><td>IOKit watcher</td><td class="yes">~10 s</td></tr>
+            <tr><td>You close the lid or sleep the Mac</td><td>Pre-emptive re-enable</td><td class="yes">Before sleeping</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="escape reveal">
+      <h3>And if all of that failed, you still have four ways back</h3>
+      <ul class="ticks">
+        <li><strong>Reconnect the external monitor.</strong> The built-in comes straight back.</li>
+        <li><strong>Close and reopen the lid.</strong> The screen is turned on before the Mac sleeps, so it's already alive when you open it.</li>
+        <li><strong>Run <code>~/rescue</code>.</strong> A standalone binary deliberately kept at a short path, so you can type it blind or over SSH. It does nothing at all when there's nothing to rescue.</li>
+        <li><strong>Reboot.</strong> The off state never survives a restart — that's deliberate, and it's the final safety net.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  INSTALL  ───────────────────────────── -->
+<section class="section section-alt" id="install">
+  <div class="wrap">
+    <p class="eyebrow">Install</p>
+    <h2 class="section-title">Three ways in. Pick the one you trust.</h2>
+    <p class="section-lede">
+      They all end at the same place: <code>/Applications/PantallaOff.app</code>, and a small laptop
+      icon in your menu bar next to the clock.
+    </p>
+
+    <div class="grid grid-3 reveal">
+
+      <article class="card install">
+        <span class="install-tag">Fastest</span>
+        <h3>1 · Download the ready-made app</h3>
+        <ol>
+          <li>Open <a href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Releases</a> and download <code>PantallaOff-&lt;version&gt;.zip</code>.</li>
+          <li><strong>Double-click the zip in Finder</strong>, then drag <code>PantallaOff.app</code> into your <strong>Applications</strong> folder.</li>
+          <li>First launch: <strong>right-click → Open</strong>. On macOS 15 and later, if the warning has already appeared, go to <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.</li>
+        </ol>
+        <p class="install-note">
+          That warning is honest: the app is signed ad-hoc, not notarised by Apple — notarising needs
+          a paid developer account, and this is a free MIT project. Prefer not to trust someone
+          else's binary? Options 2 and 3 build the identical app, and never trigger it.
+        </p>
+        <a class="btn btn-primary btn-block" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Go to Releases</a>
+      </article>
+
+      <article class="card install">
+        <span class="install-tag">No terminal</span>
+        <h3>2 · Build it yourself, by double-click</h3>
+        <ol>
+          <li><a href="https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip" rel="noopener">Download the project</a> and unzip it.</li>
+          <li><strong>Right-click</strong> <code>install.command</code> → <strong>Open</strong> → <strong>Open</strong>.</li>
+          <li>Done. It checks your Mac, builds, installs and launches the app.</li>
+        </ol>
+        <p class="install-note">
+          Use right-click → Open, not double-click: macOS quarantines anything downloaded from the
+          internet, and that's the standard way to authorise it once. Needs the Xcode Command Line
+          Tools — if they're missing, the installer opens Apple's installer for you. Full Xcode is
+          not required.
+        </p>
+        <a class="btn btn-ghost btn-block" href="https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip" rel="noopener">Download the project</a>
+      </article>
+
+      <article class="card install">
+        <span class="install-tag">One line</span>
+        <h3>3 · Build it yourself, from the terminal</h3>
+        <div class="code" data-copy-target>
+          <button type="button" class="copy" aria-label="Copy command">Copy</button>
+<pre><code>git clone https://github.com/joanproductivo/PantallaOff.git
+cd PantallaOff &amp;&amp; make install
+open /Applications/PantallaOff.app</code></pre>
+        </div>
+        <p class="install-note">
+          Options 2 and 3 also give you the rescue tool at <code>~/rescue</code>, and the app they
+          produce triggers no Gatekeeper warning at all: you compiled it, so it carries no
+          quarantine flag.
+        </p>
+        <p class="install-note">
+          Installed from Releases and want the short rescue path too? One command:
+        </p>
+        <div class="code" data-copy-target>
+          <button type="button" class="copy" aria-label="Copy command">Copy</button>
+<pre><code>cp /Applications/PantallaOff.app/Contents/MacOS/rescue ~/rescue</code></pre>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  FAQ  ───────────────────────────── -->
+<section class="section" id="faq">
+  <div class="wrap wrap-narrow">
+    <p class="eyebrow">Questions</p>
+    <h2 class="section-title">Before you install it</h2>
+
+    <div class="faq reveal">
+      <details>
+        <summary>Is this safe? What if my screen doesn't come back?</summary>
+        <div class="faq-body">
+          <p>It's the question the app is designed around. No automatic path can ever turn a display off — only your click. The display's ID is written to disk before anything is switched off, a recovery watchdog runs in a separate process that survives the app being killed, and an IOKit watcher catches the one case macOS itself misses. If everything failed at once you still have four ways back: reconnect the monitor, close and reopen the lid, run <code>~/rescue</code>, or reboot — the off state never survives a restart.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does it work without an external monitor?</summary>
+        <div class="faq-body">
+          <p>No, deliberately. With no usable second display, turning off the built-in would leave you with no screen at all, and at zero active displays macOS cannot bring a panel back by software. So the menu item greys itself out and tells you why.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does it work with a TV, an iPad via Sidecar, or a VR headset?</summary>
+        <div class="faq-body">
+          <p>Yes — anything macOS treats as a usable second display counts, including a TV over HDMI and a VR headset in extended mode. Virtual displays were specifically measured, because they behave differently from a cable at the system level, and they're handled natively.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Why does macOS say the developer can't be verified?</summary>
+        <div class="faq-body">
+          <p>Because the app is signed ad-hoc rather than notarised by Apple, and notarising requires a paid developer account for what is a free MIT project. Right-click → Open, or <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>. If you'd rather not trust a stranger's binary, build it yourself in one double-click or one command — same app, no warning.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does it collect any data?</summary>
+        <div class="faq-body">
+          <p>None. There is no account, no analytics and no network access. In normal operation it doesn't even write a log file — events stay in a small in-memory buffer, and only reach the disk if something actually goes wrong, so that a black screen can be diagnosed afterwards.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does my setup survive sleep and reboots?</summary>
+        <div class="faq-body">
+          <p>Yes, if you want it to. If the built-in was off when the Mac slept or shut down, PantallaOff turns it off again after wake or startup — but only once a usable external display has been stable for a few seconds, within a short window, through the same guarded checks as a manual click. It's on by default and can be turned off under ⌥ → Diagnostics.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does it replace Amphetamine or Caffeine?</summary>
+        <div class="faq-body">
+          <p>For the part most people use, yes: “Keep the Mac awake” is one switch, with an optional “…and the display on”. It uses the same public power-assertion API. If you need schedules, triggers or per-app rules, keep Amphetamine — this app deliberately has none of that.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Which Macs and which macOS versions?</summary>
+        <div class="faq-body">
+          <p>Apple Silicon, macOS 13 Ventura or later. Everything documented here was measured on macOS 26.6; the build targets 13+ and compiles cleanly there, but on older releases treat it as untested. Intel Macs were never tried.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What happens if my built-in display is mirroring?</summary>
+        <div class="faq-body">
+          <p>If it's the <em>source</em> of the mirror set, turning it off would leave the whole set without a source — so the app refuses and offers to break the mirror first. Being the mirrored <em>copy</em> is fine: it turns off normally.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Is it really free? What's the catch?</summary>
+        <div class="faq-body">
+          <p>Free, MIT-licensed, no paid tier. The honest catch is technical: turning a display off requires a private macOS API, which means the app can't be on the App Store and Apple could break it in a future release. That trade-off is the same one every tool in this category makes, and it's why the source is public.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  FINAL CTA  ───────────────────────────── -->
+<section class="final">
+  <div class="wrap wrap-narrow final-inner">
+    <img src="assets/icon.svg" width="72" height="72" alt="" aria-hidden="true">
+    <h2>One screen. The one you're actually looking at.</h2>
+    <p>Free, open source, and about ninety seconds from here to your menu bar.</p>
+    <div class="cta-row cta-center">
+      <a class="btn btn-primary btn-lg" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Download for macOS</a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/joanproductivo/PantallaOff" rel="noopener">Star it on GitHub</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <img src="assets/icon.svg" width="28" height="28" alt="" aria-hidden="true">
+      <div>
+        <strong>PantallaOff</strong>
+        <span>Turn off your MacBook display without closing the lid.</span>
+      </div>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="https://github.com/joanproductivo/PantallaOff" rel="noopener">Source code</a>
+      <a href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Releases</a>
+      <a href="https://github.com/joanproductivo/PantallaOff#readme" rel="noopener">Documentation</a>
+      <a href="https://github.com/joanproductivo/PantallaOff/issues" rel="noopener">Report a problem</a>
+      <a href="es/" hreflang="es" lang="es">Español</a>
+    </nav>
+    <p class="footer-legal">
+      © 2026 Joan Planas · MIT licence · Built on the API surface mapped out by
+      <a href="https://github.com/waydabber/BetterDisplay" rel="noopener">BetterDisplay</a>,
+      <a href="https://lunar.fyi" rel="noopener">Lunar</a> and
+      <a href="https://github.com/jakehilborn/displayplacer" rel="noopener">displayplacer</a>.
+      Not affiliated with Apple. macOS and MacBook are trademarks of Apple Inc.
+    </p>
+  </div>
+</footer>
+
+<div class="lang-nudge" id="lang-nudge" hidden>
+  <p>¿Prefieres español?</p>
+  <a class="btn btn-primary btn-sm" href="es/" hreflang="es" lang="es">Ver en español</a>
+  <button type="button" class="nudge-close" aria-label="Dismiss">×</button>
+</div>
+
+<script src="assets/app.js" defer></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "PantallaOff",
+      "url": "https://joanproductivo.github.io/PantallaOff/",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "macOS 13.0 or later, Apple Silicon",
+      "softwareVersion": "1.2.1",
+      "description": "Menu bar app for macOS that turns off a MacBook's built-in display with one click, without closing the lid, while the keyboard, trackpad and Touch ID keep working.",
+      "downloadUrl": "https://github.com/joanproductivo/PantallaOff/releases/latest",
+      "softwareHelp": "https://github.com/joanproductivo/PantallaOff#readme",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "inLanguage": ["en", "es"],
+      "image": "https://joanproductivo.github.io/PantallaOff/assets/og.jpg",
+      "author": { "@type": "Person", "name": "Joan Planas" },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "Turn the MacBook built-in display off and on from the menu bar",
+        "Keep the Mac awake, optionally with the display on",
+        "Turn the keyboard backlight off and on",
+        "Sleep when the lid closes, even with an external display connected",
+        "Restore the display setup after wake or startup",
+        "Start at login",
+        "English and Spanish interface"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is this safe? What if my screen doesn't come back?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No automatic path can turn a display off — only your click. The display's ID is written to disk before anything is switched off, a recovery watchdog runs in a separate process that survives the app being killed, and an IOKit watcher catches the case macOS itself misses. There are four ways back: reconnect the monitor, close and reopen the lid, run ~/rescue, or reboot — the off state never survives a restart." } },
+        { "@type": "Question", "name": "Does it work without an external monitor?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No, deliberately. With no usable second display, turning off the built-in would leave you with no screen at all, and at zero active displays macOS cannot bring a panel back by software. The menu item greys itself out and explains why." } },
+        { "@type": "Question", "name": "Does it work with a TV, an iPad via Sidecar, or a VR headset?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Anything macOS treats as a usable second display counts, including a TV over HDMI and a VR headset in extended mode. Virtual displays were specifically measured and are handled natively." } },
+        { "@type": "Question", "name": "Why does macOS say the developer can't be verified?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The app is signed ad-hoc rather than notarised by Apple, because notarising requires a paid developer account for a free MIT project. Right-click → Open, or System Settings → Privacy & Security → Open Anyway. Building it yourself produces the same app with no warning at all." } },
+        { "@type": "Question", "name": "Does it collect any data?",
+          "acceptedAnswer": { "@type": "Answer", "text": "None. No account, no analytics, no network access. In normal operation it doesn't even write a log file; events stay in an in-memory buffer and only reach disk if something goes wrong." } },
+        { "@type": "Question", "name": "Does my setup survive sleep and reboots?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, if you want it to. If the built-in was off when the Mac slept or shut down, PantallaOff turns it off again after wake or startup, but only once a usable external display has been stable for a few seconds and through the same guarded checks as a manual click. On by default and can be turned off." } },
+        { "@type": "Question", "name": "Does it replace Amphetamine or Caffeine?",
+          "acceptedAnswer": { "@type": "Answer", "text": "For the common case, yes: keep-awake is one switch with an optional 'and the display on', using the same public power-assertion API. For schedules, triggers or per-app rules, keep Amphetamine — PantallaOff deliberately has none of that." } },
+        { "@type": "Question", "name": "Which Macs and which macOS versions are supported?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Apple Silicon, macOS 13 Ventura or later. Everything documented was measured on macOS 26.6; the build targets 13+ and compiles cleanly there, but older releases are untested. Intel Macs were never tried." } },
+        { "@type": "Question", "name": "What happens if my built-in display is mirroring?",
+          "acceptedAnswer": { "@type": "Answer", "text": "If the built-in is the source of the mirror set, turning it off would leave the set without a source, so the app refuses and offers to break the mirror first. Being the mirrored copy is fine and turns off normally." } },
+        { "@type": "Question", "name": "Is it really free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Free and MIT-licensed, with no paid tier. The technical trade-off is that turning a display off requires a private macOS API, so the app cannot be on the App Store and Apple could break it in a future release — which is why the source is public." } }
+      ]
+    }
+  ]
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="es" data-lang="es"
+      data-copy="Copiar" data-copied="Copiado"
+      data-menu-off="Apagar pantalla del MacBook"
+      data-menu-on="Encender pantalla del MacBook">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PantallaOff — Apaga la pantalla de tu MacBook sin cerrar la tapa</title>
+<meta name="description" content="App gratuita de barra de menú para macOS que apaga la pantalla interna del MacBook con un clic, sin perder el teclado, el trackpad ni Touch ID. Código abierto, Apple Silicon, macOS 13+.">
+<meta name="author" content="Joan Planas">
+<meta name="theme-color" content="#0b0d14">
+<meta name="color-scheme" content="dark">
+
+<link rel="canonical" href="https://joanproductivo.github.io/PantallaOff/es/">
+<link rel="alternate" hreflang="en" href="https://joanproductivo.github.io/PantallaOff/">
+<link rel="alternate" hreflang="es" href="https://joanproductivo.github.io/PantallaOff/es/">
+<link rel="alternate" hreflang="x-default" href="https://joanproductivo.github.io/PantallaOff/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PantallaOff">
+<meta property="og:locale" content="es_ES">
+<meta property="og:locale:alternate" content="en_GB">
+<meta property="og:title" content="PantallaOff — Apaga la pantalla de tu MacBook sin cerrar la tapa">
+<meta property="og:description" content="Un clic y la pantalla interna desaparece de verdad — no atenuada. El teclado, el trackpad y Touch ID siguen funcionando. Gratis y de código abierto.">
+<meta property="og:url" content="https://joanproductivo.github.io/PantallaOff/es/">
+<meta property="og:image" content="https://joanproductivo.github.io/PantallaOff/assets/og.es.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="PantallaOff — apaga la pantalla de tu MacBook sin cerrar la tapa">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PantallaOff — Apaga la pantalla de tu MacBook sin cerrar la tapa">
+<meta name="twitter:description" content="Un clic y la pantalla interna desaparece de verdad — no atenuada. El teclado, el trackpad y Touch ID siguen funcionando. Gratis y de código abierto.">
+<meta name="twitter:image" content="https://joanproductivo.github.io/PantallaOff/assets/og.es.jpg">
+
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/icon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Ir al contenido</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="./" aria-label="PantallaOff — inicio">
+      <img src="../assets/icon.svg" width="32" height="32" alt="" aria-hidden="true">
+      <span>PantallaOff</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Secciones">
+      <a href="#por-que">Por qué</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#seguridad">Seguridad</a>
+      <a href="#instalar">Instalar</a>
+      <a href="#faq">Preguntas</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a class="lang-switch" href="../" hreflang="en" lang="en" title="Read in English">EN</a>
+      <a class="btn btn-ghost nav-github" href="https://github.com/joanproductivo/PantallaOff" rel="noopener">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Descargar</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ─────────────────────────────  HERO  ───────────────────────────── -->
+<section class="hero">
+  <div class="wrap hero-grid">
+
+    <div class="hero-copy">
+      <p class="eyebrow">App de barra de menú · macOS</p>
+      <h1>Apaga la pantalla de tu MacBook.<br><span class="accent">Sin cerrar la tapa.</span></h1>
+      <p class="lede">
+        Estás trabajando en un monitor externo, viendo una película en la tele o con unas gafas de
+        VR puestas. La pantalla del portátil, ahí abajo, no aporta nada: te parte la atención, se
+        traga tus ventanas y gasta batería. PantallaOff hace que
+        <strong>desaparezca de verdad</strong> — no atenuada: fuera. Un clic la devuelve.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn btn-primary btn-lg" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">
+          <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 1.5a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 8.03a.75.75 0 0 1 1.06-1.06l2.47 2.47V2.25A.75.75 0 0 1 8 1.5ZM2.75 12.5a.75.75 0 0 1 .75.75v.25h9v-.25a.75.75 0 0 1 1.5 0v.5A1.25 1.25 0 0 1 12.75 15h-9.5A1.25 1.25 0 0 1 2 13.75v-.5a.75.75 0 0 1 .75-.75Z"/></svg>
+          Descargar para macOS
+        </a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/joanproductivo/PantallaOff" rel="noopener">Ver el código</a>
+      </div>
+
+      <ul class="badges" aria-label="Requisitos y licencia">
+        <li>Apple Silicon</li>
+        <li>macOS 13+</li>
+        <li>Gratis · MIT</li>
+        <li><span class="version-badge" id="version-badge">v1.2.1</span></li>
+      </ul>
+      <p class="fineprint">Sin cuenta. Sin telemetría. Sin acceso a la red. Cada línea está en GitHub.</p>
+    </div>
+
+    <!-- Ilustración + réplica del menú -->
+    <div class="hero-demo">
+      <div class="stage" id="stage" role="img"
+           aria-label="Un MacBook delante de un monitor externo. Cuando la app apaga la pantalla interna, el panel del portátil se queda negro y su ventana sube al monitor.">
+        <div class="monitor">
+          <div class="mon-screen">
+            <span class="win win-1"></span>
+            <span class="win win-2"></span>
+            <span class="win win-moved"></span>
+          </div>
+          <div class="mon-neck"></div>
+          <div class="mon-foot"></div>
+        </div>
+        <div class="macbook">
+          <div class="mb-lid">
+            <div class="mb-screen"><span class="win win-3"></span></div>
+          </div>
+          <div class="mb-base"><span class="mb-notch"></span></div>
+          <div class="mb-glow"></div>
+        </div>
+      </div>
+
+      <div class="menu" id="menu">
+        <div class="menu-bar">
+          <img src="../assets/icon.svg" width="15" height="15" alt="" aria-hidden="true">
+          <span class="menu-bar-time">9:41</span>
+        </div>
+        <button type="button" class="menu-item menu-primary" id="menu-toggle" aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span>
+          <span class="menu-label">Apagar pantalla del MacBook</span>
+        </button>
+        <hr>
+        <button type="button" class="menu-item" data-toggle aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Mantener el Mac despierto</span>
+        </button>
+        <button type="button" class="menu-item" data-toggle aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Dormir al cerrar la tapa</span>
+        </button>
+        <button type="button" class="menu-item" data-toggle data-kb aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Apagar luz del teclado</span>
+        </button>
+        <hr>
+        <button type="button" class="menu-item" data-toggle aria-pressed="false">
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Abrir al iniciar sesión</span>
+        </button>
+        <hr>
+        <span class="menu-item is-static"><span class="menu-check" aria-hidden="true"></span><span class="menu-label">Salir de PantallaOff</span></span>
+        <span class="menu-item is-static"><span class="menu-check" aria-hidden="true"></span><span class="menu-label">Idioma / Language<em class="menu-arrow">›</em></span></span>
+      </div>
+      <p class="demo-hint">↑ Es una réplica real. Pulsa el primer ítem.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─────────────────────────────  POR QUÉ  ───────────────────────────── -->
+<section class="section" id="por-que">
+  <div class="wrap">
+    <p class="eyebrow">El problema</p>
+    <h2 class="section-title">No es que la pantalla brille.<br>Es que <em>está ahí</em>.</h2>
+    <p class="section-lede">
+      Cuatro peajes pequeños que ya ni notas, y todos los paga un panel que no estás usando.
+    </p>
+
+    <div class="grid grid-4 reveal">
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4v16M4 8h4M16 8h4M4 16h4M16 16h4"/></svg>
+        </div>
+        <h3>Te parte la atención</h3>
+        <p>Dos pantallas, una tarea. La mirada se te va a un panel que no tiene nada que ver con lo que estás haciendo.</p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="12" height="9" rx="1.5"/><path d="M9 20h11a1 1 0 0 0 1-1v-7M13 16l4 4-4 4" transform="translate(0,-4)"/></svg>
+        </div>
+        <h3>Se traga tus ventanas</h3>
+        <p>Las apps se abren ahí, los diálogos aparecen ahí, y el vídeo a pantalla completa se escapa ahí a media escena.</p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+        </div>
+        <h3>Alumbra la habitación</h3>
+        <p>Viendo una película a oscuras, el panel de debajo del monitor es lo más luminoso que hay en el salón.</p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M21 10v4"/><path d="M9 9.5 6.5 13H10l-2 3"/></svg>
+        </div>
+        <h3>Cuesta batería</h3>
+        <p>Una pantalla encendida que no miras nunca son los vatios más fáciles de ahorrar de tu vida.</p>
+      </article>
+    </div>
+
+    <div class="callout reveal">
+      <h3>«¿Y no puedo cerrar la tapa y ya?»</h3>
+      <p>
+        Puedes — y entonces pierdes el teclado, el trackpad y Touch ID, y el Mac se queda en modo
+        clamshell. Y si estás a media película, cerrar la tapa no es ni una opción. PantallaOff deja
+        el portátil entero utilizable y apaga <em>sólo el panel</em>.
+      </p>
+    </div>
+
+    <!-- Comparativa -->
+    <div class="table-scroll reveal">
+      <table class="compare">
+        <caption>Tres formas de lidiar con la pantalla que tienes debajo</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr-only">Qué consigues</span></th>
+            <th scope="col">Brillo al mínimo</th>
+            <th scope="col">Cerrar la tapa</th>
+            <th scope="col" class="is-us">PantallaOff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">El panel está apagado de verdad</th><td class="no">No — sigue tenuemente encendido</td><td class="yes">Sí</td><td class="yes is-us">Sí</td></tr>
+          <tr><th scope="row">Las ventanas dejan de abrirse ahí</th><td class="no">No</td><td class="yes">Sí</td><td class="yes is-us">Sí</td></tr>
+          <tr><th scope="row">El teclado y el trackpad siguen vivos</th><td class="yes">Sí</td><td class="no">No</td><td class="yes is-us">Sí</td></tr>
+          <tr><th scope="row">Touch ID sigue funcionando</th><td class="yes">Sí</td><td class="no">No</td><td class="yes is-us">Sí</td></tr>
+          <tr><th scope="row">Sirve a media película, con batería, donde sea</th><td class="yes">Sí</td><td class="no">No</td><td class="yes is-us">Sí</td></tr>
+          <tr><th scope="row">Vuelve con un clic</th><td class="yes">Sí</td><td class="yes">Sí</td><td class="yes is-us">Sí</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  FUNCIONES  ───────────────────────────── -->
+<section class="section section-alt" id="funciones">
+  <div class="wrap">
+    <p class="eyebrow">Qué te llevas</p>
+    <h2 class="section-title">Toda la app es un menú.</h2>
+    <p class="section-lede">
+      Sin temporizadores, sin panel de control, sin ventana de preferencias. Cada interruptor está
+      a un clic — y se aplican en el sitio, así que el menú se queda abierto y se re-etiqueta solo.
+    </p>
+
+    <div class="grid grid-3 reveal">
+      <article class="card feature">
+        <span class="feature-num">01</span>
+        <h3>Apagar y encender la interna</h3>
+        <p>El primer ítem del menú. macOS pasa a comportarse como si sólo tuvieras un monitor — porque, para él, es exactamente así.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">02</span>
+        <h3>Mantener el Mac despierto</h3>
+        <p>La mitad imprescindible de Amphetamine, en un interruptor. Y si quieres, mantener también la pantalla encendida para un panel o un render largo.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">03</span>
+        <h3>Apagar la luz del teclado</h3>
+        <p>Sólo el interruptor: para graduarla ya están las teclas de brillo. Al encenderla te devuelve tu ajuste de brillo automático.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">04</span>
+        <h3>Dormir al cerrar la tapa</h3>
+        <p>Opcional. Hace que cerrar la tapa duerma el Mac de verdad, aunque esté enchufado con pantalla externa, donde macOS lo mantendría despierto.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">05</span>
+        <h3>Tu configuración sobrevive al reposo y a los reinicios</h3>
+        <p>Si la interna estaba apagada al dormir o apagar el Mac, se vuelve a apagar sola — pero sólo cuando un externo utilizable lleva unos segundos estable. Activado por defecto, y se puede desactivar.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">06</span>
+        <h3>Español e inglés, y arranque al inicio</h3>
+        <p>El idioma se cambia desde el menú y se aplica al instante. Abrir al iniciar sesión es un interruptor más, si te apetece.</p>
+      </article>
+    </div>
+
+    <div class="note reveal">
+      <strong>Funciona con cualquier cosa que cuente como segunda pantalla:</strong> un monitor
+      externo, una tele por HDMI, un iPad por Sidecar o unas gafas de VR en modo extendido. Las
+      pantallas virtuales están cubiertas de forma nativa — ese caso está medido, no supuesto.
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  SEGURIDAD  ───────────────────────────── -->
+<section class="section" id="seguridad">
+  <div class="wrap">
+    <p class="eyebrow">Confianza</p>
+    <h2 class="section-title">Una herramienta que desactiva pantallas sólo puede fallar de una forma.</h2>
+    <p class="section-lede">
+      Así que la app entera está construida alrededor de ese fallo. Nada de lo que hay aquí abajo
+      es una intención de diseño: todo se midió sobre hardware real, y varios de los hallazgos
+      contradicen a la propia documentación de Apple.
+    </p>
+
+    <div class="grid grid-2 reveal">
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Regla 1</span> Ninguna ruta automática puede apagar una pantalla</h3>
+        <p>
+          Sólo tu clic. El watchdog, el manejador del despertar y todos los callbacks del sistema
+          pueden <em>encender</em> pantallas — nunca apagarlas. Hay exactamente una excepción
+          acotada, y es la que has pedido tú: volver a aplicar <em>tu propia</em> decisión anterior
+          tras despertar o arrancar, por la misma transacción vigilada. Se puede desactivar.
+        </p>
+      </article>
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Regla 2</span> El ID de la pantalla llega al disco antes de tocarla</h3>
+        <p>
+          Una pantalla desactivada desaparece del sistema: se va de la lista de pantallas de macOS
+          y hasta de Información del Sistema. La única forma de recuperarla es un ID que alguien
+          recordase antes. Por eso se escribe a disco, con <code>fsync</code>, <em>antes</em> de
+          apagar nada.
+        </p>
+      </article>
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Regla 3</span> El vigilante de rescate es otro proceso</h3>
+        <p>
+          Se lanza fuera de la app y queda reparentado a launchd, así que sobrevive incluso a un
+          <code>kill -9</code> de la propia PantallaOff. Importa, porque el comportamiento
+          documentado por macOS —«se revierte al salir la app»— se probó aquí, y con este ajuste
+          concreto no se revierte.
+        </p>
+      </article>
+      <article class="card pillar">
+        <h3><span class="pillar-tag">Regla 4</span> Se niega cuando no sería seguro</h3>
+        <p>
+          ¿No hay pantalla externa utilizable, o tu interna es ahora mismo la <em>fuente</em> de una
+          duplicación? El ítem del menú aparece en gris y te dice por qué. La app prefiere no hacer
+          nada antes que dejarte sin ninguna pantalla.
+        </p>
+      </article>
+    </div>
+
+    <div class="zombie reveal">
+      <p class="eyebrow">El fallo que nadie había escrito</p>
+      <h3>Cuando desenchufas el monitor, macOS no siempre se entera</h3>
+      <p>
+        Con la pantalla interna apagada, desenchufar físicamente el monitor externo
+        <strong>no llega a CoreGraphics</strong>. macOS sigue reportando un monitor que está encima
+        de la mesa, desconectado. Cualquier vigilante construido sobre las APIs normales de
+        pantallas es estructuralmente ciego a esto: no puede ver el problema. Aquí está el latido de
+        la propia app cazándolo:
+      </p>
+<pre class="log" aria-label="Extracto del registro con el monitor desconectado aún reportado"><code>23:17:07  cg-ve: 2[ext,act] usables=1     <span class="c">← cable conectado</span>
+23:17:40  cg-ve: 2[ext,act] usables=1     <span class="c">← CABLE DESENCHUFADO — sin cambios</span>
+23:17:56  cg-ve: 22[ext,act]              <span class="c">← reconectado: ID nuevo</span></code></pre>
+      <p>
+        La solución fue dejar de preguntarle al sistema de pantallas y ponerse a escuchar a IOKit,
+        que <em>sí</em> ve marcharse el cable — y actuar dentro de la ventana estrecha en la que
+        reactivar el panel todavía funciona. Se observaron tres comportamientos distintos al
+        desenchufar; los tres están cubiertos.
+      </p>
+      <div class="table-scroll">
+        <table class="compare compact">
+          <thead><tr><th scope="col">Qué pasa al desenchufar</th><th scope="col">Lo caza</th><th scope="col">Latencia</th></tr></thead>
+          <tbody>
+            <tr><td>El sistema re-registra el monitor con un ID nuevo</td><td>Acelerador</td><td class="yes">Instantáneo</td></tr>
+            <tr><td>El sistema procesa la retirada correctamente</td><td>Callback de reconfiguración</td><td class="yes">Instantáneo</td></tr>
+            <tr><td>El sistema se queda callado (el caso de arriba)</td><td>Vigía IOKit</td><td class="yes">~10 s</td></tr>
+            <tr><td>Cierras la tapa o duermes el Mac</td><td>Reactivación preventiva</td><td class="yes">Antes de dormir</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="escape reveal">
+      <h3>Y si todo eso fallara, aún te quedan cuatro salidas</h3>
+      <ul class="ticks">
+        <li><strong>Reconectar el monitor externo.</strong> La interna vuelve inmediatamente.</li>
+        <li><strong>Cerrar y abrir la tapa.</strong> La pantalla se enciende antes de que el Mac duerma, así que ya está viva cuando la abres.</li>
+        <li><strong>Ejecutar <code>~/rescue</code>.</strong> Un binario independiente, a propósito en una ruta corta que puedes teclear a ciegas o por SSH. No hace absolutamente nada si no hay nada que rescatar.</li>
+        <li><strong>Reiniciar.</strong> El estado apagado nunca sobrevive a un reinicio — es deliberado, y es la última red.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  INSTALAR  ───────────────────────────── -->
+<section class="section section-alt" id="instalar">
+  <div class="wrap">
+    <p class="eyebrow">Instalación</p>
+    <h2 class="section-title">Tres caminos. Elige el que te dé confianza.</h2>
+    <p class="section-lede">
+      Los tres acaban en el mismo sitio: <code>/Applications/PantallaOff.app</code>, y un iconito de
+      portátil en tu barra de menú, junto al reloj.
+    </p>
+
+    <div class="grid grid-3 reveal">
+
+      <article class="card install">
+        <span class="install-tag">Más rápido</span>
+        <h3>1 · Descargar la app ya compilada</h3>
+        <ol>
+          <li>Entra en <a href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Releases</a> y descarga <code>PantallaOff-&lt;versión&gt;.zip</code>.</li>
+          <li><strong>Doble clic en el zip desde el Finder</strong> y arrastra <code>PantallaOff.app</code> a tu carpeta <strong>Aplicaciones</strong>.</li>
+          <li>Primer arranque: <strong>clic derecho → Abrir</strong>. En macOS 15 y posteriores, si el aviso ya ha salido, ve a <strong>Ajustes del Sistema → Privacidad y seguridad</strong> y pulsa <strong>Abrir igualmente</strong>.</li>
+        </ol>
+        <p class="install-note">
+          Ese aviso es honesto: la app está firmada ad-hoc, no notarizada por Apple — notarizar
+          exige una cuenta de desarrollador de pago, y esto es un proyecto MIT gratuito. ¿Prefieres
+          no fiarte del binario de otro? Las opciones 2 y 3 compilan la misma app, y no lo provocan.
+        </p>
+        <a class="btn btn-primary btn-block" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Ir a Releases</a>
+      </article>
+
+      <article class="card install">
+        <span class="install-tag">Sin terminal</span>
+        <h3>2 · Compilarla tú, con un doble clic</h3>
+        <ol>
+          <li><a href="https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip" rel="noopener">Descarga el proyecto</a> y descomprímelo.</li>
+          <li><strong>Clic derecho</strong> en <code>install.command</code> → <strong>Abrir</strong> → <strong>Abrir</strong>.</li>
+          <li>Ya está. Comprueba tu Mac, compila, instala y abre la app.</li>
+        </ol>
+        <p class="install-note">
+          Usa clic derecho → Abrir, no doble clic: macOS pone en cuarentena todo lo que se descarga
+          de internet, y ésa es la forma estándar de autorizarlo una vez. Necesita las Herramientas
+          de Línea de Comandos de Xcode — si te faltan, el instalador abre el de Apple por ti. Xcode
+          completo no hace falta.
+        </p>
+        <a class="btn btn-ghost btn-block" href="https://github.com/joanproductivo/PantallaOff/archive/refs/heads/main.zip" rel="noopener">Descargar el proyecto</a>
+      </article>
+
+      <article class="card install">
+        <span class="install-tag">Una línea</span>
+        <h3>3 · Compilarla tú, desde la terminal</h3>
+        <div class="code" data-copy-target>
+          <button type="button" class="copy" aria-label="Copiar comando">Copiar</button>
+<pre><code>git clone https://github.com/joanproductivo/PantallaOff.git
+cd PantallaOff &amp;&amp; make install
+open /Applications/PantallaOff.app</code></pre>
+        </div>
+        <p class="install-note">
+          Las opciones 2 y 3 te dejan además la herramienta de rescate en <code>~/rescue</code>, y la
+          app que producen no provoca ningún aviso de Gatekeeper: la has compilado tú, así que no
+          lleva la marca de cuarentena.
+        </p>
+        <p class="install-note">
+          ¿Instalaste desde Releases y quieres también la ruta corta de rescate? Un comando:
+        </p>
+        <div class="code" data-copy-target>
+          <button type="button" class="copy" aria-label="Copiar comando">Copiar</button>
+<pre><code>cp /Applications/PantallaOff.app/Contents/MacOS/rescue ~/rescue</code></pre>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  FAQ  ───────────────────────────── -->
+<section class="section" id="faq">
+  <div class="wrap wrap-narrow">
+    <p class="eyebrow">Preguntas</p>
+    <h2 class="section-title">Antes de instalarla</h2>
+
+    <div class="faq reveal">
+      <details>
+        <summary>¿Es seguro? ¿Y si la pantalla no vuelve?</summary>
+        <div class="faq-body">
+          <p>Es la pregunta alrededor de la que está diseñada la app. Ninguna ruta automática puede apagar una pantalla: sólo tu clic. El ID de la pantalla se escribe a disco antes de apagar nada, un vigilante de rescate corre en otro proceso que sobrevive a que maten la app, y un vigía IOKit caza el único caso que a macOS se le escapa. Si fallara todo a la vez, aún tienes cuatro salidas: reconectar el monitor, cerrar y abrir la tapa, ejecutar <code>~/rescue</code> o reiniciar — el estado apagado nunca sobrevive a un reinicio.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Funciona sin monitor externo?</summary>
+        <div class="faq-body">
+          <p>No, y es deliberado. Sin una segunda pantalla utilizable, apagar la interna te dejaría sin ninguna, y con cero pantallas activas macOS no puede recuperar un panel por software. Así que el ítem del menú se pone en gris y te explica por qué.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Sirve con una tele, un iPad por Sidecar o unas gafas de VR?</summary>
+        <div class="faq-body">
+          <p>Sí: vale cualquier cosa que macOS trate como segunda pantalla utilizable, incluida una tele por HDMI y unas gafas de VR en modo extendido. Las pantallas virtuales se midieron específicamente, porque a nivel de sistema se comportan distinto que un cable, y están cubiertas de forma nativa.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Por qué macOS dice que no puede verificar al desarrollador?</summary>
+        <div class="faq-body">
+          <p>Porque la app está firmada ad-hoc en vez de notarizada por Apple, y notarizar exige una cuenta de desarrollador de pago para lo que es un proyecto MIT gratuito. Clic derecho → Abrir, o <strong>Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente</strong>. Y si prefieres no fiarte del binario de un desconocido, compílala tú con un doble clic o un comando: misma app, sin aviso.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Recoge algún dato?</summary>
+        <div class="faq-body">
+          <p>Ninguno. No hay cuenta, ni analítica, ni acceso a la red. En marcha normal ni siquiera escribe un fichero de registro: los eventos se quedan en un búfer pequeño en memoria y sólo llegan al disco si algo va mal, para poder diagnosticar después una pantalla en negro.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Mi configuración sobrevive al reposo y a los reinicios?</summary>
+        <div class="faq-body">
+          <p>Sí, si quieres. Si la interna estaba apagada al dormir o apagar el Mac, PantallaOff la vuelve a apagar tras despertar o arrancar — pero sólo cuando un externo utilizable lleva unos segundos estable, dentro de una ventana corta y con las mismas comprobaciones que un clic manual. Viene activado y se puede desactivar en ⌥ → Diagnóstico.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Sustituye a Amphetamine o Caffeine?</summary>
+        <div class="faq-body">
+          <p>Para lo que usa casi todo el mundo, sí: «Mantener el Mac despierto» es un interruptor, con un «…y la pantalla encendida» opcional, usando la misma API pública de aserciones de energía. Si necesitas horarios, disparadores o reglas por app, quédate con Amphetamine: esta app no tiene nada de eso, a propósito.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Qué Macs y qué versiones de macOS?</summary>
+        <div class="faq-body">
+          <p>Apple Silicon, macOS 13 Ventura o posterior. Todo lo documentado aquí se midió en macOS 26.6; la compilación apunta a 13+ y compila limpio ahí, pero en versiones anteriores trátalo como no probado. En Intel no se ha probado nunca.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿Y si mi pantalla interna está duplicando?</summary>
+        <div class="faq-body">
+          <p>Si es la <em>fuente</em> de la duplicación, apagarla dejaría sin origen a todo el conjunto, así que la app se niega y te ofrece romper la duplicación primero. Ser la <em>copia</em> duplicada no es problema: se apaga con normalidad.</p>
+        </div>
+      </details>
+      <details>
+        <summary>¿De verdad es gratis? ¿Dónde está la trampa?</summary>
+        <div class="faq-body">
+          <p>Gratis, con licencia MIT y sin versión de pago. La trampa honesta es técnica: apagar una pantalla exige una API privada de macOS, lo que implica que la app no puede estar en la App Store y que Apple podría romperla en una versión futura. Ese trato es el mismo que hacen todas las herramientas de esta categoría, y es justo por eso que el código es público.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────  CTA FINAL  ───────────────────────────── -->
+<section class="final">
+  <div class="wrap wrap-narrow final-inner">
+    <img src="../assets/icon.svg" width="72" height="72" alt="" aria-hidden="true">
+    <h2>Una pantalla. La que estás mirando de verdad.</h2>
+    <p>Gratis, de código abierto, y a unos noventa segundos de tu barra de menú.</p>
+    <div class="cta-row cta-center">
+      <a class="btn btn-primary btn-lg" href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Descargar para macOS</a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/joanproductivo/PantallaOff" rel="noopener">Dale una estrella en GitHub</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <img src="../assets/icon.svg" width="28" height="28" alt="" aria-hidden="true">
+      <div>
+        <strong>PantallaOff</strong>
+        <span>Apaga la pantalla de tu MacBook sin cerrar la tapa.</span>
+      </div>
+    </div>
+    <nav class="footer-links" aria-label="Pie de página">
+      <a href="https://github.com/joanproductivo/PantallaOff" rel="noopener">Código fuente</a>
+      <a href="https://github.com/joanproductivo/PantallaOff/releases/latest" rel="noopener">Releases</a>
+      <a href="https://github.com/joanproductivo/PantallaOff/blob/main/README.es.md" rel="noopener">Documentación</a>
+      <a href="https://github.com/joanproductivo/PantallaOff/issues" rel="noopener">Reportar un problema</a>
+      <a href="../" hreflang="en" lang="en">English</a>
+    </nav>
+    <p class="footer-legal">
+      © 2026 Joan Planas · Licencia MIT · Construida sobre el terreno que cartografiaron
+      <a href="https://github.com/waydabber/BetterDisplay" rel="noopener">BetterDisplay</a>,
+      <a href="https://lunar.fyi" rel="noopener">Lunar</a> y
+      <a href="https://github.com/jakehilborn/displayplacer" rel="noopener">displayplacer</a>.
+      Sin relación con Apple. macOS y MacBook son marcas de Apple Inc.
+    </p>
+  </div>
+</footer>
+
+<div class="lang-nudge" id="lang-nudge" hidden>
+  <p>Prefer English?</p>
+  <a class="btn btn-primary btn-sm" href="../" hreflang="en" lang="en">Read in English</a>
+  <button type="button" class="nudge-close" aria-label="Cerrar">×</button>
+</div>
+
+<script src="../assets/app.js" defer></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "PantallaOff",
+      "url": "https://joanproductivo.github.io/PantallaOff/es/",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "macOS 13.0 o posterior, Apple Silicon",
+      "softwareVersion": "1.2.1",
+      "description": "App de barra de menú para macOS que apaga la pantalla interna del MacBook con un clic, sin cerrar la tapa, manteniendo el teclado, el trackpad y Touch ID.",
+      "downloadUrl": "https://github.com/joanproductivo/PantallaOff/releases/latest",
+      "softwareHelp": "https://github.com/joanproductivo/PantallaOff/blob/main/README.es.md",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "inLanguage": ["es", "en"],
+      "image": "https://joanproductivo.github.io/PantallaOff/assets/og.es.jpg",
+      "author": { "@type": "Person", "name": "Joan Planas" },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "featureList": [
+        "Apagar y encender la pantalla interna del MacBook desde la barra de menú",
+        "Mantener el Mac despierto, opcionalmente con la pantalla encendida",
+        "Apagar y encender la luz del teclado",
+        "Dormir al cerrar la tapa, incluso con pantalla externa conectada",
+        "Restaurar la configuración de pantalla al despertar o arrancar",
+        "Abrir al iniciar sesión",
+        "Interfaz en español e inglés"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "¿Es seguro? ¿Y si la pantalla no vuelve?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Ninguna ruta automática puede apagar una pantalla: sólo tu clic. El ID de la pantalla se escribe a disco antes de apagar nada, un vigilante de rescate corre en otro proceso que sobrevive a que maten la app, y un vigía IOKit caza el caso que a macOS se le escapa. Hay cuatro salidas: reconectar el monitor, cerrar y abrir la tapa, ejecutar ~/rescue o reiniciar — el estado apagado nunca sobrevive a un reinicio." } },
+        { "@type": "Question", "name": "¿Funciona sin monitor externo?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No, y es deliberado. Sin una segunda pantalla utilizable, apagar la interna te dejaría sin ninguna, y con cero pantallas activas macOS no puede recuperar un panel por software. El ítem del menú se pone en gris y explica por qué." } },
+        { "@type": "Question", "name": "¿Sirve con una tele, un iPad por Sidecar o unas gafas de VR?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Sí. Vale cualquier cosa que macOS trate como segunda pantalla utilizable, incluida una tele por HDMI y unas gafas de VR en modo extendido. Las pantallas virtuales se midieron específicamente y están cubiertas de forma nativa." } },
+        { "@type": "Question", "name": "¿Por qué macOS dice que no puede verificar al desarrollador?",
+          "acceptedAnswer": { "@type": "Answer", "text": "La app está firmada ad-hoc en vez de notarizada por Apple, porque notarizar exige una cuenta de desarrollador de pago para un proyecto MIT gratuito. Clic derecho → Abrir, o Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente. Compilándola tú sale la misma app sin ningún aviso." } },
+        { "@type": "Question", "name": "¿Recoge algún dato?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Ninguno. Sin cuenta, sin analítica y sin acceso a la red. En marcha normal ni siquiera escribe un fichero de registro: los eventos se quedan en un búfer en memoria y sólo llegan al disco si algo va mal." } },
+        { "@type": "Question", "name": "¿Mi configuración sobrevive al reposo y a los reinicios?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Sí, si quieres. Si la interna estaba apagada al dormir o apagar el Mac, se vuelve a apagar tras despertar o arrancar, pero sólo cuando un externo utilizable lleva unos segundos estable y con las mismas comprobaciones que un clic manual. Viene activado y se puede desactivar." } },
+        { "@type": "Question", "name": "¿Sustituye a Amphetamine o Caffeine?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Para el caso común, sí: mantener despierto es un interruptor con un «y la pantalla encendida» opcional, usando la misma API pública de aserciones de energía. Para horarios, disparadores o reglas por app, quédate con Amphetamine: PantallaOff no tiene nada de eso, a propósito." } },
+        { "@type": "Question", "name": "¿Qué Macs y qué versiones de macOS soporta?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Apple Silicon, macOS 13 Ventura o posterior. Todo lo documentado se midió en macOS 26.6; la compilación apunta a 13+ y compila limpio ahí, pero versiones anteriores están sin probar. En Intel no se ha probado nunca." } },
+        { "@type": "Question", "name": "¿Y si mi pantalla interna está duplicando?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Si la interna es la fuente de la duplicación, apagarla dejaría sin origen a todo el conjunto, así que la app se niega y ofrece romper la duplicación primero. Ser la copia duplicada no es problema y se apaga con normalidad." } },
+        { "@type": "Question", "name": "¿De verdad es gratis?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Gratis, con licencia MIT y sin versión de pago. El trato técnico es que apagar una pantalla exige una API privada de macOS, así que la app no puede estar en la App Store y Apple podría romperla en una versión futura — y por eso el código es público." } }
+      ]
+    }
+  ]
+}
+</script>
+
+</body>
+</html>

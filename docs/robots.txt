@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://joanproductivo.github.io/PantallaOff/sitemap.xml
