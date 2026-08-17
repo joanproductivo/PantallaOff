@@ -4,6 +4,11 @@ Sitio estático bilingüe (inglés en `/`, español en `/es/`) publicado en
 **<https://pantallaoff.joanproductivo.com>**. HTML, CSS y JavaScript de vainilla, sin
 dependencias, sin compilación y sin nada que instalar: son ficheros que se sirven tal cual.
 
+Estas notas viven **fuera de `docs/`** a propósito. Todo lo que hay dentro de esa carpeta se
+publica en internet, y una nota de despliegue —qué servidor, qué proyecto, cómo se llama la
+aplicación— no pinta nada en una web pública. No es que sea secreto; es que el repositorio
+podría hacerse privado algún día y la web es pública para siempre.
+
 ```
 docs/
   index.html          inglés  (hreflang x-default)

@@ -1,8 +1,4 @@
 User-agent: *
 Allow: /
 
-# Notas de despliegue, no una página del sitio. Se sirve porque vive en la
-# carpeta publicada, pero no tiene nada que hacer en un buscador.
-Disallow: /README.md
-
 Sitemap: https://pantallaoff.joanproductivo.com/sitemap.xml
