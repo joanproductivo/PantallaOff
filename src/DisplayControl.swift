@@ -889,6 +889,8 @@ final class DisplayControl {
     /// de `scheduleAutoOffRearm`. CONFINADOS a workQueue.
     private var lastAutoOffAppliedAt = Date.distantPast
     private var autoOffRearmStreak = 0
+    /// Hay un sondeo de la ventana ya encolado. CONFINADO a workQueue.
+    private var offWindowPollScheduled = false
     /// Última reconfiguración vista (cualquier trigger que no sea "timer").
     /// Sólo se escribe en evaluateSafetySync: workQueue, sin carreras.
     private var lastReconfigAt = Date.distantPast
@@ -952,6 +954,23 @@ final class DisplayControl {
         }
         offWindow = OffWindow(kind: kind, until: Date().addingTimeInterval(60))
         write("\(kind.label): ventana abierta (\(trigger)); esperando externo utilizable estable")
+        scheduleOffWindowPoll()
+    }
+
+    /// Mientras hay ventana abierta se evalúa cada segundo, en vez de esperar
+    /// al tick de 3 s del watchdog. NO relaja ninguna condición —los plazos de
+    /// estabilidad son de reloj de pared y se comprueban igual—, sólo evita
+    /// que la decisión se quede esperando a un tick que ya no aporta nada.
+    /// Se encadena solo y se detiene en cuanto la ventana se cierra.
+    private func scheduleOffWindowPoll() {
+        guard !offWindowPollScheduled else { return }
+        offWindowPollScheduled = true
+        workQueue.asyncAfter(deadline: .now() + 1) {
+            self.offWindowPollScheduled = false
+            guard self.offWindow != nil else { return }
+            self.checkOffWindow()
+            if self.offWindow != nil { self.scheduleOffWindowPoll() }
+        }
     }
 
     /// Para el arranque de la app (login item tras un reinicio del Mac).
