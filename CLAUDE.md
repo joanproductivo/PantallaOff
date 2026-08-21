@@ -95,8 +95,9 @@ Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre proceso
 `restoreIntent` (P1-R; la intención sobrevive al reinicio y NUNCA es el ancla del rescate —
 eso es el fichero de estado), `autoOffOnConnect` (P1-C; sin intención asociada: es una
 regla revocable que sobrevive al reinicio y se reevalúa en cada arranque, pero que un
-«Encender pantalla» explícito desactiva), `sleepOnLidClose`, `verboseLogging` y
-`language`.
+«Encender pantalla» explícito desactiva), `sleepOnLidClose`, `verboseLogging`,
+`language`, y las tres de la luz del teclado (`kbOffByUs`, `kbBrightnessBeforeOff`,
+`kbAutoBeforeOff`: recuerdan tu brillo y tu auto-brillo para devolvértelos al encenderla).
 
 ### Las cinco invariantes
 
@@ -236,10 +237,13 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
 
   Conclusión operativa: **no se toca el acelerador.** Con un monitor que no re-registra, ni
   el parpadeo ni el re-armado de P1-C llegan a activarse.
-- **Recién conectado, el externo parpadea en CG**: medido 2026-08-21 (08:24:36 match,
-  08:24:37 `4[ext,act]`, **08:24:40 desaparece**, 08:24:41 vuelve). Por eso la ventana
-  exige el MISMO ID 2 s y otro tanto sin reconfiguraciones: un disparo a la primera lectura
-  apagaría la interna en mitad del baile.
+- **Recién conectado, el externo puede parpadear en CG**: medido 2026-08-21 (08:24:36
+  match, 08:24:37 `4[ext,act]`, **08:24:40 desaparece**, 08:24:41 vuelve). Por eso la
+  ventana exige el MISMO ID `estabilidadSegundos` y otro tanto sin reconfiguraciones: un
+  disparo a la primera lectura apagaría la interna en mitad del baile. **Pero es la
+  excepción**: de seis conexiones medidas ese día sobre dos monitores, CG registró el
+  externo ~1 s tras el match y sólo UNA parpadeó — de ahí que 2 s basten y 5 fueran el
+  margen de cuando ese caso era el único dato.
 - **Apagar la interna desde el menú sólo mata su propio proxy Embedded** (medido
   2026-08-21, cuatro veces): el External conserva su registry ID. El re-encendido
   **automático** tras un desenchufe tampoco crea ningún External (tres veces). La vía
@@ -328,9 +332,10 @@ P1-C hace habitual el estado de partida—, pero **no es un bloqueante de public
 - Si un monitor que se apaga por su botón mata su `DCPAVServiceProxy`. Si lo mata,
   encenderlo cuenta como conexión y P1-C vuelve a apagar la interna — coherente con la
   preferencia, pero conviene medirlo antes de documentarlo como comportamiento.
-- **La cuarta capa del re-armado, en un dock o hub**: si ahí el proxy External tarda MÁS de
-  20 s en morir, o no muere, el re-armado abriría ventana con el cable fuera. Entonces todo
-  depende de que, con la interna ya encendida, `pc_usable_external_count()` caiga a 0 — algo
+- **La cuarta capa del re-armado, en un dock o hub**: si ahí el proxy External tarda en morir
+  MÁS de los 12 s que espera el re-armado, o no muere, abriría ventana con el cable fuera.
+  Entonces todo depende de que, con la interna ya encendida,
+  `pc_usable_external_count()` caiga a 0 — algo
   que se da por cierto pero **no está medido**: el zombi sólo se midió con la interna
   apagada. Medirlo: interna apagada, sonda mirando, tirar del cable, y registrar cuándo
   muere el proxy y si los externos utilizables llegan a 0 tras el enable de emergencia.
