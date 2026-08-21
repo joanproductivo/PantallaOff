@@ -118,12 +118,26 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
     decisión que hay que haber tomado antes, así que no se puede programar un apagado sin
     haber apagado. Y **«Encender pantalla» la desactiva**: encender a mano contradice la
     regla, y dejarla armada convertiría el clic del usuario en una pelea contra la app a
-    cada reconexión. La dispara ÚNICAMENTE el nacimiento de un `DCPAVServiceProxy` con
-    `Location == External` en IOKit — conexión física, o arranque de la app con el monitor
-    puesto, que es lo que hace que la preferencia siga valiendo tras reiniciar — y **nunca
-    lo que enumere CoreGraphics**: un zombi es un externo utilizable para CG (se
+    cada reconexión. Tiene TRES disparadores, y ninguno es CoreGraphics: el nacimiento de
+    un `DCPAVServiceProxy` con `Location == External` en IOKit (conexión física), el
+    arranque de la app con el monitor puesto —que es lo que hace que la preferencia siga
+    valiendo tras reiniciar— y el **re-armado tras un encendido automático** de la interna
+    (§ abajo). **Nunca lo que enumere CG**: un zombi es un externo utilizable para CG (se
     re-registra con ID nuevo y parece una conexión), y apagar ahí deja cero pantallas
-    reales. **Se calla** —y cierra su ventana— 90 s desde que el Mac se duerme o se apaga,
+    reales.
+
+    El **re-armado** existe porque un encendido de una red de seguridad no deroga la regla
+    del usuario: medido 2026-08-21, el externo se re-registró en CG (4→25) sin tocar el
+    cable, el acelerador encendió la interna y P1-C se quedaba muerta con el monitor
+    delante. Espera 20 s (el proxy tarda ~10 s en morir: antes de ese plazo «hay proxy» no
+    distingue el cable puesto del recién quitado) y exige proxy External vivo. Contra el
+    zombi hay cuatro capas, en este orden: la ventana **sólo decide con la interna
+    encendida** (si consta apagada cierra por `ALREADY_OFF`), el predicado sobre CG, la
+    presencia física al decidir, y por último esos 20 s. **No relajes las tres primeras
+    fiándote de la cuarta.** Lleva anti-oscilación: si la interna vuelve sola en menos de
+    300 s tras un apagado de P1-C, al segundo intento seguido se deja de re-armar y se
+    registra como anomalía. Sólo re-arman las redes de seguridad; la reversión de una
+    postcondición fallida y los encendidos preventivos de dormir/apagar/salir, no. **Se calla** —y cierra su ventana— 90 s desde que el Mac se duerme o se apaga,
     renovados 60 s al despertar: ahí un match de proxies no significa «acabas de conectar
     un monitor». El silencio se comprueba al abrir la ventana Y al decidir. Un display
     virtual no la dispara (no tiene proxy).
@@ -196,6 +210,14 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   ID nuevo y con `Location` ya legible, y CG añade el display **2,5 s** más tarde. De ahí
   que P1-C dispare con el match (fiable e inmediato) pero NO se fíe de la presencia del
   proxy como prueba de «sigue conectado»: para eso está el predicado sobre CG.
+- **El acelerador dispara solo con frecuencia, sin tocar el cable**: medido en el registro
+  del 2026-08-21, **19 re-encendidos** de la interna en 6 h 47 min (`cg-reenum; enable(1)
+  -> CGError 0`), siempre con `usables=1` y el monitor quieto. La causa es que CG
+  re-registra el externo con ID nuevo (4→25) y el acelerador, por diseño, trata un ID nuevo
+  como la firma del zombi. Es fail-open y por sí solo sólo cuesta un clic, pero condiciona
+  cualquier cosa que se acople a él —de ahí el anti-oscilación de P1-C—. **La causa raíz
+  merece su propio ciclo**: si el acelerador pudiera distinguir el re-registro con cable
+  puesto del zombi, sobrarían tanto esos 19 encendidos como el re-armado.
 - **Recién conectado, el externo parpadea en CG**: medido 2026-08-21 (08:24:36 match,
   08:24:37 `4[ext,act]`, **08:24:40 desaparece**, 08:24:41 vuelve). Por eso la ventana
   exige el MISMO ID ≥5 s y ≥5 s sin reconfiguraciones: un disparo a la primera lectura
@@ -265,7 +287,14 @@ pantalla hasta reenchufar o reiniciar. P1-C no abre ninguna ruta nueva de apagad
 convierte «interna apagada con monitor puesto» en el estado habitual y multiplica la
 exposición. **Los 1014 merecen su propio ciclo, con mediciones, antes de publicar.**
 
-**Sin medir** (pendiente con la sonda): si un monitor que se apaga por su botón mata su
-`DCPAVServiceProxy`. Si lo mata, encenderlo cuenta como conexión y P1-C vuelve a apagar la
-interna — coherente con la preferencia, pero conviene medirlo antes de documentarlo como
-comportamiento.
+**Sin medir** (pendiente con la sonda):
+
+- Si un monitor que se apaga por su botón mata su `DCPAVServiceProxy`. Si lo mata,
+  encenderlo cuenta como conexión y P1-C vuelve a apagar la interna — coherente con la
+  preferencia, pero conviene medirlo antes de documentarlo como comportamiento.
+- **La cuarta capa del re-armado, en un dock o hub**: si ahí el proxy External tarda MÁS de
+  20 s en morir, o no muere, el re-armado abriría ventana con el cable fuera. Entonces todo
+  depende de que, con la interna ya encendida, `pc_usable_external_count()` caiga a 0 — algo
+  que se da por cierto pero **no está medido**: el zombi sólo se midió con la interna
+  apagada. Medirlo: interna apagada, sonda mirando, tirar del cable, y registrar cuándo
+  muere el proxy y si los externos utilizables llegan a 0 tras el enable de emergencia.

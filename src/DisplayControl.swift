@@ -173,7 +173,7 @@ final class DisplayControl {
         }
         if !externalBack {
             writeProblem("post-condición fallida: sin externo utilizable tras 2 s, revirtiendo")
-            let reverted = turnOnAllSync()
+            let reverted = turnOnAllSync(rearm: false)
             // El dead-man sólo se desarma si la reversión funcionó; si falló,
             // que dispare: es la última red que queda.
             if reverted { _ = disarmDeadman() }
@@ -234,9 +234,11 @@ final class DisplayControl {
 
     /// Variante bloqueante, para `applicationWillTerminate`: allí no hay
     /// ocasión de esperar a una cola de fondo, el proceso se va a morir.
+    /// Sus tres usos —dormir, apagar el Mac y salir— son encendidos
+    /// preventivos, no el momento de re-aplicar la regla de P1-C.
     @discardableResult
     func turnOnAllBlocking() -> Bool {
-        return workQueue.sync { self.turnOnAllSync() }
+        return workQueue.sync { self.turnOnAllSync(rearm: false) }
     }
 
     /// Cuando el rescate resulta imposible (cero pantallas), se deja de
@@ -245,8 +247,15 @@ final class DisplayControl {
     /// 18 minutos, cada uno bloqueando ~21 s.
     private var isStranded = false
 
+    /// `rearm`: si este encendido debe hacer que P1-C vuelva a evaluarse. Lo
+    /// quieren sólo las redes de seguridad (watchdog): un encendido automático
+    /// no deroga la regla del usuario. Lo tienen PROHIBIDO la reversión de una
+    /// postcondición fallida —re-armar ahí reintentaría en bucle un apagado
+    /// que acaba de fallar— y los encendidos preventivos de dormir, apagar y
+    /// salir, que no son el momento de aplicar reglas.
     @discardableResult
-    private func turnOnAllSync() -> Bool {
+    private func turnOnAllSync(rearm: Bool = true) -> Bool {
+        let builtinWasOff = pc_state_builtin_disabled()
         let r = pc_rescue()
         write("rescate: indicios=\(r.had_evidence) activos \(r.active_before) -> \(r.active_after), "
               + "IDs \(r.targeted_ok)/\(r.targeted_attempts), "
@@ -263,6 +272,12 @@ final class DisplayControl {
             isStranded = false
         }
         notifyChange()
+        // Sólo si esto ha devuelto LA INTERNA. `targeted_ok` no sirve: también
+        // cuenta externos recuperados y entradas rancias podadas, así que
+        // dispararía re-armados que la interna nunca pidió.
+        if rearm, builtinWasOff, !pc_state_builtin_disabled() {
+            scheduleAutoOffRearm(reason: "rescate")
+        }
         return r.ok
     }
 
@@ -587,6 +602,10 @@ final class DisplayControl {
                let loc = cf.takeRetainedValue() as? String, loc == "External" {
                 externalAppeared = true
                 write("iokit: conexión externa (\(trigger)); proxy 0x\(String(eid, radix: 16))")
+                // Una conexión física de verdad limpia la racha del
+                // anti-oscilación: lo que se estaba vigilando era la interna
+                // volviendo sola, no un cable nuevo.
+                workQueue.async { self.autoOffRearmStreak = 0 }
             }
             IOObjectRelease(svc)
             svc = IOIteratorNext(iterator)
@@ -613,9 +632,55 @@ final class DisplayControl {
         }
     }
 
-    /// Evalúa la regla de P1-C con lo que YA está conectado, al arrancar la
-    /// app: es lo que hace que la preferencia siga valiendo tras reiniciar el
-    /// Mac, donde el fichero de estado se descarta y todo vuelve encendido.
+    /// Re-arma P1-C después de que una RED DE SEGURIDAD haya encendido la
+    /// interna (acelerador, vigía o watchdog). Sin esto, la regla se queda
+    /// muerta hasta la próxima conexión física: medido el 2026-08-21, el
+    /// externo se re-registró en CoreGraphics (4→25) sin tocar el cable, el
+    /// acelerador encendió la interna —correctamente, creía que se perdía la
+    /// salida— y P1-C no volvió a aplicarse nunca, con el monitor delante y la
+    /// opción marcada. Un encendido automático no es una decisión del usuario:
+    /// su regla sigue en pie.
+    ///
+    /// Contra el zombi hay CUATRO capas, y conviene saber en qué orden
+    /// protegen, porque relajar las primeras fiándose de la última sería un
+    /// error: (1) la ventana sólo decide con la interna ENCENDIDA — si consta
+    /// apagada cierra por `ALREADY_OFF` sin tocar nada, y es lo que
+    /// estructuralmente mata el caso; (2) el predicado de seguridad sobre CG;
+    /// (3) la presencia física en IOKit al decidir; y sólo entonces (4) estos
+    /// 20 s de espera, la capa más débil, que existe porque el proxy External
+    /// tarda ~10 s en morir tras un desenchufe (medido 2026-08-21): antes de
+    /// ese plazo «queda un proxy vivo» no distingue el cable puesto del cable
+    /// recién quitado.
+    ///
+    /// Anti-oscilación: si la interna vuelve sola poco después de que P1-C la
+    /// apagara, algo la está reencendiendo —el acelerador dispara solo con
+    /// bastante frecuencia, medido: 19 veces en 6 h 47 min con el cable
+    /// quieto— y volver a aplicar la regla sería un bucle de apagados. A la
+    /// segunda vez seguida se deja de re-armar y se registra como anomalía:
+    /// la interna se queda encendida, que es la dirección segura.
+    private func scheduleAutoOffRearm(reason: String) {
+        guard Self.autoOffOnConnect, pc_is_laptop() else { return }
+        workQueue.asyncAfter(deadline: .now() + 20) {
+            guard Self.autoOffOnConnect else { return }
+            if Date().timeIntervalSince(self.lastAutoOffAppliedAt) < 300 {
+                self.autoOffRearmStreak += 1
+                if self.autoOffRearmStreak >= 2 {
+                    self.writeProblem("re-armado descartado: la interna vuelve sola tras aplicar el "
+                                      + "apagado al conectar (racha \(self.autoOffRearmStreak)); "
+                                      + "se deja encendida para no oscilar")
+                    return
+                }
+            } else {
+                self.autoOffRearmStreak = 0
+            }
+            self.autoOffArmNow(trigger: "reencendido automático: \(reason)")
+        }
+    }
+
+    /// Evalúa la regla de P1-C con lo que YA está conectado: al arrancar la
+    /// app —es lo que hace que la preferencia siga valiendo tras reiniciar el
+    /// Mac, donde el fichero de estado se descarta y todo vuelve encendido— y
+    /// al re-armar tras un encendido automático.
     /// Corre en ioQueue porque `deadProxyIDs` está confinado ahí.
     func autoOffArmNow(trigger: String) {
         guard Self.autoOffOnConnect, pc_is_laptop() else { return }
@@ -744,6 +809,11 @@ final class DisplayControl {
                    online.prefix(Int(no)).contains(e.id) {
                     pc_state_remove(e.id)
                     notifyChange()
+                    // La red de seguridad ha encendido la interna, pero eso no
+                    // deroga la regla del usuario: si el monitor sigue ahí de
+                    // verdad, hay que volver a aplicarla. (El bucle sólo
+                    // recorre entradas `was_builtin`.)
+                    scheduleAutoOffRearm(reason: reason)
                 } else {
                     pc_log_str("enable aceptado pero \(e.id) no está online; se conserva el ancla")
                 }
@@ -814,6 +884,11 @@ final class DisplayControl {
 
     /// CONFINADA a workQueue. nil = sin ventana.
     private var offWindow: OffWindow?
+    /// Cuándo aplicó P1-C su último apagado, y cuántos re-armados seguidos han
+    /// acabado con la interna encendida otra vez. Los usa el anti-oscilación
+    /// de `scheduleAutoOffRearm`. CONFINADOS a workQueue.
+    private var lastAutoOffAppliedAt = Date.distantPast
+    private var autoOffRearmStreak = 0
     /// Última reconfiguración vista (cualquier trigger que no sea "timer").
     /// Sólo se escribe en evaluateSafetySync: workQueue, sin carreras.
     private var lastReconfigAt = Date.distantPast
@@ -1025,6 +1100,9 @@ final class DisplayControl {
                 Self.restoreIntent = false
                 write("restauración: interna apagada de nuevo (decisión previa del usuario)")
             } else {
+                // Sello para el anti-oscilación: si la interna vuelve sola
+                // dentro de los próximos minutos, no se re-arma a ciegas.
+                lastAutoOffAppliedAt = Date()
                 write("apagado al conectar: interna apagada (regla activada por el usuario)")
             }
         case .failure(let err):
