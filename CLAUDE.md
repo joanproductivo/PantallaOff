@@ -280,12 +280,30 @@ App Store y Apple puede romperlas. Firma ad-hoc sin entitlements — si algún d
 atajo global hará falta permiso de Accesibilidad, que una identidad ad-hoc nueva revoca en cada
 compilación.
 
-**P1-C amplifica un fallo que ya existe.** Con la interna apagada, desenchufar el externo
-depende del re-encendido de emergencia, y en el registro de este equipo (05→21 ago 2026) ése
-falló los tres intentos con `CGError 1014` en **15 de 29** desenchufes: el equipo se queda sin
-pantalla hasta reenchufar o reiniciar. P1-C no abre ninguna ruta nueva de apagado, pero
-convierte «interna apagada con monitor puesto» en el estado habitual y multiplica la
-exposición. **Los 1014 merecen su propio ciclo, con mediciones, antes de publicar.**
+**El `CGError 1014` del vigía, con su alcance real.** Con la interna apagada, desenchufar el
+externo hace que el vigía intente el re-encendido en la ventana zombi, y en el registro de
+este equipo (05→21 ago 2026, ahora en `PantallaOff.log.1`) ése **agotó los tres intentos con
+`CGError 1014` en 15 de 29 desenchufes**.
+
+**Ojo con lo que ese número NO dice.** «El enable del vigía falló» ≠ «el usuario se quedó sin
+pantalla», y el registro no puede distinguirlo: hasta el 21-ago el «Registro detallado» estaba
+desactivado, así que los rescates posteriores (`write("rescate: …")`) no llegaban a disco.
+Sólo `writeProblem` se registraba, y ahí están los datos que sí acotan el daño:
+
+- **`*** SIN SALIDA POR SOFTWARE ***` aparece CERO veces en los 16 días.** Ése es el mensaje
+  del estado irrecuperable de verdad (cero displays activos), y nunca se alcanzó.
+- El watchdog registró 5 rescates por `usables=0`, y tras cada fallo del vigía el registro
+  continúa con normalidad (la interna vuelve a constar apagada más tarde).
+- **Joan, que es quien lo usa, reporta no haberse quedado nunca sin pantalla.**
+
+O sea: el vigía es la PRIMERA red, no la última. Cuando falla en la ventana zombi quedan el
+acelerador, el watchdog cuando CG procesa por fin la desconexión, reenchufar y la tapa. La
+lectura correcta es «la primera red falla a menudo y las siguientes lo tapan», no «se pierde
+la pantalla la mitad de las veces». No repitas la segunda: se afirmó en una sesión sin
+verificar el desenlace de cada fallo, y el dato empírico la contradice.
+
+Sigue mereciendo su ciclo —una primera red que falla el 52 % es un mal sitio donde estar, y
+P1-C hace habitual el estado de partida—, pero **no es un bloqueante de publicación**.
 
 **Sin medir** (pendiente con la sonda):
 
