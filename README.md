@@ -21,19 +21,19 @@ PantallaOff makes that screen **genuinely disappear**. Not dimmed: gone. macOS b
 you were running a single display. Windows stop wandering there. One click brings it back.
 
 ```
-┌────────────────────────────────────────────────────────┐
-│  Turn off MacBook display                              │  ← that's the whole idea
-│  ────────────────────────────────────────────────────  │
-│  ☐ Turn off the display when an external is connected  │
-│  ☐ Keep the Mac awake                                  │
-│  ☐ Sleep when the lid closes                           │
-│  ☐ Turn off keyboard backlight                         │
-│  ────────────────────────────────────────────────────  │
-│  ☐ Open at login                                       │
-│  ────────────────────────────────────────────────────  │
-│  Quit PantallaOff                                      │
-│  Idioma / Language                                ▶    │
-└────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│  Turn off MacBook display                     │  ← that's the whole idea
+│  ☐   Also turn off when an external connects  │
+│  ───────────────────────────────────────────  │
+│  ☐ Keep the Mac awake                         │
+│  ☐ Sleep when the lid closes                  │
+│  ☐ Turn off keyboard backlight                │
+│  ───────────────────────────────────────────  │
+│  ☐ Open at login                              │
+│  ───────────────────────────────────────────  │
+│  Quit PantallaOff                             │
+│  Idioma / Language                       ▶    │
+└───────────────────────────────────────────────┘
 ```
 
 ## What you get
@@ -45,9 +45,10 @@ you were running a single display. Windows stop wandering there. One click bring
   handle the rest. It gives you your auto-brightness setting back when you turn it on again.
 - **Sleep when the lid closes** (optional): make closing the lid sleep the Mac even when
   plugged in with an external display (when macOS would keep it awake in clamshell mode).
-- **Turn off the display when an external is connected** (optional): plug the monitor in and
-  the built-in goes off a few seconds later, through the same guarded transaction as the
-  click. Physical monitors only — virtual displays (VR headsets, Sidecar) don't trigger it.
+- **Also turn off when an external connects** (optional): a sub-option of *Turn off MacBook
+  display* itself. Plug the monitor in and the built-in goes off a few seconds later, through
+  the same guarded transaction as the click. Physical monitors only — virtual displays (VR
+  headsets, Sidecar) don't trigger it.
 - **Keep your display setup across sleep and reboots** (on by default): if the built-in was
   off when the Mac slept or shut down, it goes off again once a usable external display is
   stable. Can be turned off under ⌥ → Diagnostics.
@@ -117,8 +118,8 @@ usable external display has been stable for a few seconds, within a short window
 the same guarded transaction as the menu click. On by default; turn it off under
 **⌥ → Diagnostics → Keep display setup after wake/startup**.
 
-**Or have it turn off by itself when you plug the monitor in.** Enable **Turn off the display
-when an external is connected** (off by default). What counts as connecting: plugging in a
+**Or have it turn off by itself when you plug the monitor in.** Right below *Turn off MacBook
+display* there's a sub-option, **…Also turn off when an external connects** (off by default). What counts as connecting: plugging in a
 physical monitor, launching the app with one already plugged in (that's what makes the rule
 survive reboots, together with *Open at login*), and flipping the switch itself — which
 closes the menu, since it's about to change your displays. If you click **Turn on MacBook
@@ -142,12 +143,12 @@ The item is greyed out with a reason when it wouldn't be safe — no usable exte
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
-**Toggles don't close the menu.** Turn-off-on-connect, keep awake, sleep-on-lid-close,
+**Toggles don't close the menu.** Also-turn-off-on-connect, keep awake, sleep-on-lid-close,
 keyboard backlight, open at login and the language switch apply in place — the menu stays
 open and relabels itself. Actions that
-change your displays still close it, as they should — which is why *Turn off the display when
-an external is connected* closes the menu when you enable it with a monitor already plugged
-in: it's about to turn the built-in off.
+change your displays still close it, as they should — which is why *Also turn off when an
+external connects* closes the menu when you enable it with a monitor already plugged in: it's
+about to turn the built-in off.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
 state, the app version, *Open the log*, *Verbose logging*, the *Keep display setup after

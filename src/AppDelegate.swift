@@ -219,16 +219,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(displayItem)
         refs.displayItem = displayItem
 
-        if state != .offByUs, control.builtInIsMirrorMaster {
-            let bm = item(s.breakMirror, #selector(breakMirror), enabled: true)
-            menu.addItem(bm)
-            refs.breakMirrorItem = bm
-        }
-
-        menu.addItem(.separator())
-
-        // Apagar al conectar una externa (P1-C): sólo tiene sentido con
-        // pantalla interna que apagar, o sea, en un portátil.
+        // Sub-opción de la acción principal (P1-C): «además, hazlo solo cada
+        // vez que conecte una externa». Cuelga del ítem de apagar —sangrada,
+        // como «…y la pantalla encendida» cuelga de «Mantener despierto»—
+        // porque es la misma decisión, automatizada; ponerla abajo, entre los
+        // interruptores generales, la desligaba de lo que hace.
+        //
+        // Se muestra SIEMPRE (en portátiles), también con la interna ya
+        // apagada: es justo entonces cuando hace falta poder desactivarla,
+        // p. ej. antes de reenchufar el monitor para recuperar la pantalla.
         if pc_is_laptop() {
             let (autoItem, autoRow) = stayOpenRow(title: s.autoOffOnConnect,
                                                   checked: DisplayControl.autoOffOnConnect) { [weak self] in
@@ -237,6 +236,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(autoItem)
             refs.autoOffRow = autoRow
         }
+
+        if state != .offByUs, control.builtInIsMirrorMaster {
+            let bm = item(s.breakMirror, #selector(breakMirror), enabled: true)
+            menu.addItem(bm)
+            refs.breakMirrorItem = bm
+        }
+
+        menu.addItem(.separator())
 
         // Mantener despierto: interruptor, no cierra.
         let (awakeItem, awakeRow) = stayOpenRow(title: s.keepAwake,

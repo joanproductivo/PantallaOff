@@ -110,9 +110,9 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
   - **P1-R, restauración** («Mantener configuración de pantalla al despertar/arrancar»,
     activada por defecto, desactivable en ⌥ → Diagnóstico): re-aplica una decisión
     explícita previa del usuario tras despertar o arrancar.
-  - **P1-C, apagado al conectar** («Apagar la pantalla al conectar una externa»,
-    **desactivada por defecto**): aplica una regla permanente del usuario al conectar un
-    monitor. La dispara ÚNICAMENTE el nacimiento de un `DCPAVServiceProxy` con
+  - **P1-C, apagado al conectar** («…Apagar también al conectar una externa», sub-opción
+    del ítem principal del menú, **desactivada por defecto**): aplica una regla permanente
+    del usuario al conectar un monitor. La dispara ÚNICAMENTE el nacimiento de un `DCPAVServiceProxy` con
     `Location == External` en IOKit — conexión física, arranque con el monitor puesto, o
     activación del interruptor — y **nunca lo que enumere CoreGraphics**: un zombi es un
     externo utilizable para CG (se re-registra con ID nuevo y parece una conexión), y
