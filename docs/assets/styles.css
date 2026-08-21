@@ -633,3 +633,6 @@ code { font-family: var(--mono); font-size: .88em; }
 
 /* Sub-opción del menú: cuelga del ítem principal, sangrada como en la app. */
 .menu-item.menu-sub .menu-label { padding-left: 1.15rem; }
+/* `display: flex` en .menu-item pisa el display:none que el navegador da a
+   [hidden], así que sin esto la fila se ve siempre. Mismo caso que .lang-nudge. */
+.menu-item[hidden] { display: none; }
