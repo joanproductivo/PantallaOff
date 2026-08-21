@@ -22,18 +22,19 @@ comporta como si sólo tuvieras un monitor. Las ventanas dejan de irse ahí. Un 
 devuelve.
 
 ```
-┌──────────────────────────────────────┐
-│  Apagar pantalla del MacBook         │  ← toda la idea es esto
-│  ──────────────────────────────────  │
-│  ☐ Mantener el Mac despierto         │
-│  ☐ Dormir al cerrar la tapa          │
-│  ☐ Apagar luz del teclado            │
-│  ──────────────────────────────────  │
-│  ☐ Abrir al iniciar sesión           │
-│  ──────────────────────────────────  │
-│  Salir de PantallaOff                │
-│  Idioma / Language              ▶    │
-└──────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│  Apagar pantalla del MacBook                   │  ← toda la idea es esto
+│  ────────────────────────────────────────────  │
+│  ☐ Apagar la pantalla al conectar una externa  │
+│  ☐ Mantener el Mac despierto                   │
+│  ☐ Dormir al cerrar la tapa                    │
+│  ☐ Apagar luz del teclado                      │
+│  ────────────────────────────────────────────  │
+│  ☐ Abrir al iniciar sesión                     │
+│  ────────────────────────────────────────────  │
+│  Salir de PantallaOff                          │
+│  Idioma / Language                        ▶    │
+└────────────────────────────────────────────────┘
 ```
 
 ## Qué te llevas
@@ -45,6 +46,9 @@ devuelve.
   teclas de brillo. Al encenderla te devuelve tu ajuste de brillo automático.
 - **Dormir al cerrar la tapa** (opcional): que cerrar la tapa duerma el Mac aunque esté
   enchufado con pantalla externa (cuando macOS lo mantendría despierto en clamshell).
+- **Apagar la pantalla al conectar una externa** (opcional): enchufas el monitor y la
+  interna se apaga sola unos segundos después, por la misma transacción guardada del clic.
+  Sólo con monitores físicos: las pantallas virtuales (gafas de VR, Sidecar) no la disparan.
 - **Mantener la configuración al despertar/arrancar** (por defecto): si la interna estaba
   apagada al dormir o apagar el Mac, se vuelve a apagar sola cuando hay un externo
   utilizable estable. Desactivable en ⌥ → Diagnóstico.
@@ -114,6 +118,21 @@ cuando un externo utilizable lleva unos segundos estable, dentro de una ventana 
 la misma transacción guardada del clic del menú. Activado por defecto; se desactiva en
 **⌥ → Diagnóstico → Mantener configuración de pantalla al despertar/arrancar**.
 
+**Y si quieres, que se apague sola al conectar el monitor.** Activa **Apagar la pantalla al
+conectar una externa** (desactivado por defecto). Cuenta como conexión: enchufar un monitor
+físico, arrancar la app con uno ya enchufado (por eso la regla sobrevive a los reinicios, con
+*Abrir al iniciar sesión*) y activar el propio interruptor — que cierra el menú, porque va a
+tocar las pantallas. Si pulsas **Encender pantalla**, se queda encendida hasta la próxima
+conexión (o hasta que relances la app). Se apaga por la misma transacción guardada: si en ese
+momento no hay una externa utilizable y estable, no pasa nada. Las pantallas virtuales (gafas
+de VR, Sidecar) no la disparan; para ésas, el clic de siempre.
+
+Un aviso que vale para cualquier forma de apagar la interna: **si desenchufas el monitor con
+la pantalla apagada y no vuelve sola, reenchúfalo** — o cierra y abre la tapa. Con esta opción
+activada estarás más a menudo en ese estado, así que conviene saberlo. Y ojo: reenchufar es
+una conexión como cualquier otra, así que la interna volverá a apagarse a los pocos segundos.
+Si lo que quieres es recuperarla, desactiva el interruptor antes.
+
 ## Cómo se usa
 
 Clic en **Apagar pantalla del MacBook**. Ya está.
@@ -122,9 +141,11 @@ El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla e
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
-**Los interruptores no cierran el menú.** Mantener despierto, dormir al cerrar la tapa, luz
-del teclado, abrir al iniciar sesión y el idioma se aplican en el sitio: el menú se queda
-abierto y se re-etiqueta solo. Las acciones que tocan pantallas sí lo cierran, como debe ser.
+**Los interruptores no cierran el menú.** Apagar al conectar una externa, mantener despierto,
+dormir al cerrar la tapa, luz del teclado, abrir al iniciar sesión y el idioma se aplican en
+el sitio: el menú se queda abierto y se re-etiqueta solo. Las acciones que tocan pantallas sí lo cierran, como debe ser
+— y por eso *Apagar la pantalla al conectar una externa* cierra el menú cuando lo activas con
+un monitor ya enchufado: en unos segundos va a apagar la interna.
 
 **Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
 pantallas, la versión de la app, *Abrir el registro*, *Registro detallado*, el interruptor
@@ -217,9 +238,12 @@ Los tres modos de fallo observados están cubiertos:
 | Cierras la tapa / duermes el Mac | Encendido preventivo antes de dormir | antes de dormir |
 
 Una regla lo sostiene todo: **ninguna ruta automática puede apagar jamás una pantalla** — con
-una única excepción acotada: la restauración re-aplica *tu propio* clic anterior tras
-despertar o arrancar, por la misma transacción guardada, y sólo con un externo utilizable
-estable. El vigilante, el manejador de despertar y todos los callbacks sólo pueden
+dos excepciones acotadas, las dos gobernadas por un interruptor tuyo y las dos por la misma
+transacción guardada, con un externo utilizable estable: la restauración re-aplica *tu propio*
+clic anterior tras despertar o arrancar, y el apagado al conectar aplica *tu propia* regla
+cuando enchufas un monitor — y sólo cuando IOKit ve un monitor físico nuevo, nunca por lo que
+CoreGraphics enumere (un monitor recién desenchufado sigue pareciendo real ahí durante unos
+segundos). El vigilante, el manejador de despertar y todos los callbacks sólo pueden
 *encender*.
 
 ---
@@ -289,7 +313,7 @@ make status   # estado de pantallas + dead-man
 ```
 src/PantallaCore.{h,c}    el predicado de seguridad, mutación, estado, rescate — una sola implementación
 src/Bridge.h              expone el núcleo C a Swift
-src/DisplayControl.swift  watchdog, vigía IOKit, dead-man, restauración P1-R, registro
+src/DisplayControl.swift  watchdog, vigía IOKit, dead-man, apagado diferido (P1-R/P1-C), registro
 src/LidSleep.swift        dormir al cerrar la tapa (vigía clamshell, APIs públicas)
 src/KeepAwake.swift       mantener despierto (IOPMAssertion — API pública)
 src/KeyboardLight.swift   luz del teclado (CoreBrightness, privada)
@@ -319,8 +343,10 @@ menos que pases `--allow-builtin`.
   Silicon — pero todo lo que cuenta este README se midió en 26.6. En versiones anteriores,
   dalo por no probado.
 - **Sólo Apple Silicon.** Nada de esto se ha probado en Intel.
-- **El estado apagado no sobrevive a un reinicio.** Es deliberado: es la red de seguridad
-  final.
+- **El fichero de estado no sobrevive a un reinicio.** Es deliberado: es la red de seguridad
+  final — al arrancar, todo está encendido. Si la interna vuelve a apagarse sola es porque tú
+  dejaste activada la restauración o el apagado al conectar, y ambas pasan por la transacción
+  completa, con una externa utilizable y estable.
 - **Mantener despierto no vence al cierre de tapa.** macOS fuerza el reposo al margen de
   cualquier assertion, y aquí eso es una ventaja: cerrar la tapa es tu vía fiable de vuelta.
 - **Firma ad-hoc.** Hoy no importa. Si algún día añades un atajo de teclado global necesitarás

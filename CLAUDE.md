@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 App de barra de menú para macOS que **desactiva la pantalla interna del MacBook** (Apple
 Silicon, macOS 13+), más mantener despierto, dormir al cerrar la tapa, restauración del
-apagado al despertar/arrancar (P1-R), luz del teclado y arranque al inicio.
+apagado al despertar/arrancar (P1-R), apagado automático al conectar un externo (P1-C),
+luz del teclado y arranque al inicio.
 Swift + AppKit sobre un núcleo en C, compilado con Command Line Tools — **sin Xcode**.
 
 El código, los comentarios y los mensajes de commit están en **español**. La interfaz es
@@ -42,6 +43,10 @@ disponible» no muta nada):
 Ejecútalos **desde el bundle**, no desde `./build`: un binario sin bundle id usa otro dominio
 de `UserDefaults` y reporta un estado que no es el de la app.
 
+Y no dejes `build/PantallaOff.app` corriendo a la vez que la instalada: comparten bundle id
+(salen dos «PantallaOff» en Ajustes → Barra de menús) y, con P1-C activado, las dos armarían
+su propia ventana de apagado sobre las mismas pantallas.
+
 ## No hay tests automáticos: la validación es contra hardware
 
 No existe suite de tests. Lo más parecido es `build/selftest`, que **desactiva un display de
@@ -74,8 +79,8 @@ Reparto del lado Swift:
 
 | Fichero | Responsabilidad |
 |---|---|
-| `DisplayControl.swift` | watchdog, vigía IOKit, dead-man, restauración P1-R, registro, cola de trabajo |
-| `AppDelegate.swift` | menú y acciones (el apagado sólo entra por `turnOffBuiltIn`: menú y restauración P1-R) |
+| `DisplayControl.swift` | watchdog, vigía IOKit, dead-man, ventana de apagado diferido (P1-R y P1-C), registro, cola de trabajo |
+| `AppDelegate.swift` | menú y acciones (el apagado sólo entra por `turnOffBuiltIn`: menú, restauración P1-R y apagado al conectar P1-C) |
 | `KeepAwake.swift` | `IOPMAssertion` (API pública) |
 | `LidSleep.swift` | «dormir al cerrar la tapa»: vigía clamshell + `IOPMSleepSystem` (públicas) |
 | `KeyboardLight.swift` | `KeyboardBrightnessClient` de CoreBrightness (privada) |
@@ -88,24 +93,41 @@ Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre proceso
 `~/.pantallaoff-armed` (pid del dead-man), `~/Library/Logs/PantallaOff.log`. En
 `UserDefaults` (dominio del bundle id — de ahí el aviso de arriba): `restoreOffEnabled` y
 `restoreIntent` (P1-R; la intención sobrevive al reinicio y NUNCA es el ancla del rescate —
-eso es el fichero de estado), `sleepOnLidClose`, `verboseLogging` y `language`.
+eso es el fichero de estado), `autoOffOnConnect` (P1-C; sin intención asociada: es una
+regla permanente que se reevalúa en cada arranque), `sleepOnLidClose`, `verboseLogging` y
+`language`.
 
 ### Las cinco invariantes
 
 Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
 
-- **P1 — fail-open.** *Ninguna ruta automática puede DESACTIVAR un display*, con UNA
-  excepción acotada (P1-R): la **restauración** («Mantener configuración de pantalla al
-  despertar/arrancar», activada por defecto, desactivable en ⌥ → Diagnóstico), que
-  re-aplica una decisión explícita previa del
-  usuario tras despertar o arrancar, reutilizando la transacción completa del menú
-  (precondición + P5 + dead-man + postcondición), exigiendo el MISMO externo utilizable
-  ≥5 s (continuidad por ID) y ≥5 s sin reconfiguraciones, dentro de una ventana de 60 s
-  (cuyo reloj se pausa mientras el sistema tiene las pantallas dormidas) con un solo
-  intento. Watchdog, wake, callbacks y vigía IOKit sólo pueden **encender**.
-  Sólo hay dos callers de `pc_set_display_enabled(..., false)` — el flujo `turnOffBuiltIn`
-  (menú y restauración P1-R) y la CLI de `selftest`. Si añades otro caller u otra ruta
-  automática, párate a pensar.
+- **P1 — fail-open.** *Ninguna ruta automática puede DESACTIVAR un display*, con DOS
+  excepciones acotadas, ambas gobernadas por un interruptor del usuario y ambas por la
+  **misma ventana de apagado diferido**: 60 s (con el reloj pausado mientras el sistema
+  tiene las pantallas dormidas), el MISMO externo utilizable ≥5 s (continuidad por ID),
+  ≥5 s sin reconfiguraciones, un solo intento, y la transacción completa del menú
+  (precondición + P5 + dead-man + postcondición).
+  - **P1-R, restauración** («Mantener configuración de pantalla al despertar/arrancar»,
+    activada por defecto, desactivable en ⌥ → Diagnóstico): re-aplica una decisión
+    explícita previa del usuario tras despertar o arrancar.
+  - **P1-C, apagado al conectar** («Apagar la pantalla al conectar una externa»,
+    **desactivada por defecto**): aplica una regla permanente del usuario al conectar un
+    monitor. La dispara ÚNICAMENTE el nacimiento de un `DCPAVServiceProxy` con
+    `Location == External` en IOKit — conexión física, arranque con el monitor puesto, o
+    activación del interruptor — y **nunca lo que enumere CoreGraphics**: un zombi es un
+    externo utilizable para CG (se re-registra con ID nuevo y parece una conexión), y
+    apagar ahí deja cero pantallas reales. **Se calla** —y cierra su ventana— 15 s tras un
+    «Encender» del menú, y 90 s desde que el Mac se duerme o se apaga, renovados 60 s al
+    despertar: en todos esos casos un match de proxies no significa «acabas de conectar un
+    monitor». El silencio se comprueba al abrir la ventana Y al decidir; lo único que lo
+    atraviesa es una orden explícita (activar el interruptor), que lo limpia. Un display
+    virtual no la dispara (no tiene proxy).
+
+  Watchdog, wake, callbacks y el vigía de **terminación** de IOKit sólo pueden
+  **encender**; la notificación de **match** del mismo puerto no enciende ni apaga: sólo
+  abre una ventana. Sólo hay dos callers de `pc_set_display_enabled(..., false)` — el
+  flujo `turnOffBuiltIn` (menú, restauración P1-R y apagado al conectar P1-C) y la CLI de
+  `selftest`. Si añades otro caller u otra ruta automática, párate a pensar.
 - **P2 — el rescate no depende de enumerar.** Un display desactivado desaparece de
   `CGGetOnlineDisplayList`; sólo se recupera por su ID persistido o con la API pública
   `CGRestorePermanentDisplayConfiguration()`.
@@ -162,6 +184,22 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   asentada. Y al revés que el cable, **el desmontaje de un virtual SÍ lo procesa CG**
   (medido: el acelerador lo ve desaparecer al instante y cg-reenum reenciende al primer
   intento — sin zombi): las redes CG cubren a los virtuales de forma nativa.
+- **El proxy External tarda ~10 s en morir tras el desenchufe, pero nace y se puebla al
+  instante al conectar** (medido 2026-08-21, sonda de solo lectura sobre el monitor de
+  2560×1080): al tirar del cable, CG re-enumera el externo (4→14) en el mismo segundo y
+  la terminación IOKit llega **10 s** después; al reenchufar, el match llega con registry
+  ID nuevo y con `Location` ya legible, y CG añade el display **2,5 s** más tarde. De ahí
+  que P1-C dispare con el match (fiable e inmediato) pero NO se fíe de la presencia del
+  proxy como prueba de «sigue conectado»: para eso está el predicado sobre CG.
+- **Recién conectado, el externo parpadea en CG**: medido 2026-08-21 (08:24:36 match,
+  08:24:37 `4[ext,act]`, **08:24:40 desaparece**, 08:24:41 vuelve). Por eso la ventana
+  exige el MISMO ID ≥5 s y ≥5 s sin reconfiguraciones: un disparo a la primera lectura
+  apagaría la interna en mitad del baile.
+- **Apagar la interna desde el menú sólo mata su propio proxy Embedded** (medido
+  2026-08-21, cuatro veces): el External conserva su registry ID. El re-encendido
+  **automático** tras un desenchufe tampoco crea ningún External (tres veces). La vía
+  «Encender pantalla» del menú con el monitor puesto **no está medida** — de ahí que P1-C
+  se calle 15 s tras un encendido explícito: cubre ese hueco sin depender de la medición.
 - **`hw.model` ya no contiene "Book"** desde 2022 (`Mac15,10`). Para detectar portátil se usa
   la presencia de `AppleSmartBattery`.
 
@@ -173,7 +211,18 @@ bloquear `main` congelaría el timer del watchdog justo en la ventana más pelig
 emergencias mutan in situ (el fast-path en el hilo del callback CG; el vigía en `ioQueue`)
 y se serializan con `fastPathLock` — pero la rama solo-Embedded del vigía no toca CG en
 `ioQueue`: delega en el watchdog. `LidSleep` confina su estado en su propia cola, y el
-estado de la ventana P1-R vive confinado en `workQueue`.
+estado de la ventana de apagado diferido (P1-R y P1-C) vive confinado en `workQueue`. El
+**match** de IOKit se recibe en `ioQueue` sin estado propio —sólo lee el registro y
+despacha a `workQueue`— por la misma razón que la rama solo-Embedded: una llamada
+bloqueada ahí retrasaría la siguiente terminación física, que sí es urgente.
+
+Las mutaciones ordinarias **no** se serializan con las emergencias: `turnOffBuiltInSync` no
+toma `fastPathLock` a propósito, porque el vigía puede tenerlo 30 s (medido: tres intentos
+con `CGError 1014` a ~10 s cada uno) y bloquear ahí el hilo del callback CG sería peor. El
+solapamiento está cubierto aguas abajo: la comprobación de integridad tras el apagado acepta
+la interferencia y limpia, y re-escribe el ancla si un tercero la borró. P1-C no cambia ese
+diseño, pero sí la frecuencia: dispara justo en eventos de cable, que es cuando el vigía
+martillea.
 
 ## Convenciones
 
@@ -202,3 +251,15 @@ APIs privadas (`CGSConfigureDisplayEnabled`, `KeyboardBrightnessClient`): no es 
 App Store y Apple puede romperlas. Firma ad-hoc sin entitlements — si algún día se añade un
 atajo global hará falta permiso de Accesibilidad, que una identidad ad-hoc nueva revoca en cada
 compilación.
+
+**P1-C amplifica un fallo que ya existe.** Con la interna apagada, desenchufar el externo
+depende del re-encendido de emergencia, y en el registro de este equipo (05→21 ago 2026) ése
+falló los tres intentos con `CGError 1014` en **15 de 29** desenchufes: el equipo se queda sin
+pantalla hasta reenchufar o reiniciar. P1-C no abre ninguna ruta nueva de apagado, pero
+convierte «interna apagada con monitor puesto» en el estado habitual y multiplica la
+exposición. **Los 1014 merecen su propio ciclo, con mediciones, antes de publicar.**
+
+**Sin medir** (pendiente con la sonda): si un monitor que se apaga por su botón mata su
+`DCPAVServiceProxy`. Si lo mata, encenderlo cuenta como conexión y P1-C vuelve a apagar la
+interna — coherente con la preferencia, pero conviene medirlo antes de documentarlo como
+comportamiento.

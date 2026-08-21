@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var keepDisplayItem: NSMenuItem?
         var keepDisplayRow: StayOpenRow?
         var lidRow: StayOpenRow?
+        var autoOffRow: StayOpenRow?
         var restoreRow: StayOpenRow?
         var kbRow: StayOpenRow?
         var loginRow: StayOpenRow?
@@ -81,7 +82,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // este arranque abre la ventana (sólo con el interruptor activado).
         // DESPUÉS de reconciliar: una entrada rancia de la interna daría un
         // falso ALREADY_OFF y cerraría la ventana sin restaurar.
-        control.openRestoreWindowAtLaunch()
+        control.openOffWindowAtLaunch()
+        // Apagado al conectar P1-C: un monitor ya enchufado al arrancar cuenta
+        // como conexión — es lo que hace que la preferencia siga valiendo tras
+        // reiniciar el Mac. Después de reconciliar por el mismo motivo, y
+        // después de la restauración, que manda si ambas concurren.
+        control.autoOffArmNow(trigger: "arranque")
         KeyboardLight.reconcile()
         refresh()
 
@@ -99,7 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Quitar la app es dejar de gestionar: la intención de restauración se
         // borra — salvo que esta terminación venga del apagado del Mac, cuyo
-        // contrato es justo conservarla para el próximo arranque.
+        // contrato es justo conservarla para el próximo arranque. (El apagado
+        // al conectar no guarda intención: es una regla permanente, así que al
+        // relanzar la app vuelve a evaluarla con lo que haya conectado.)
         control.appWillTerminate()
 
         // Las assertions de energía mueren con el proceso, pero soltarlas
@@ -219,6 +227,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
+        // Apagar al conectar una externa (P1-C): sólo tiene sentido con
+        // pantalla interna que apagar, o sea, en un portátil.
+        if pc_is_laptop() {
+            let (autoItem, autoRow) = stayOpenRow(title: s.autoOffOnConnect,
+                                                  checked: DisplayControl.autoOffOnConnect) { [weak self] in
+                self?.toggleAutoOffOnConnect()
+            }
+            menu.addItem(autoItem)
+            refs.autoOffRow = autoRow
+        }
+
         // Mantener despierto: interruptor, no cierra.
         let (awakeItem, awakeRow) = stayOpenRow(title: s.keepAwake,
                                                 checked: KeepAwake.isOn) { [weak self] in
@@ -252,10 +271,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         // Arranque al iniciar sesión. Seguro porque la app no apaga nada por
-        // su cuenta (P1; la única excepción, la restauración P1-R —
-        // desactivable en Diagnóstico — re-aplica una decisión previa del
-        // usuario y exige externo utilizable estable): arrancar sola sólo
-        // pone el icono en la barra.
+        // su cuenta (P1; las dos excepciones —la restauración P1-R y el
+        // apagado al conectar P1-C, ambas gobernadas por el usuario— exigen
+        // externo utilizable estable y pasan por la transacción completa del
+        // menú): arrancar sola sólo pone el icono en la barra.
         switch LoginItem.state {
         case .enabled, .disabled:
             let (li, row) = stayOpenRow(title: s.openAtLogin,
@@ -426,6 +445,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         refs.lidRow?.configure(title: s.sleepOnLidClose, checked: LidSleep.enabled)
+        refs.autoOffRow?.configure(title: s.autoOffOnConnect,
+                                   checked: DisplayControl.autoOffOnConnect)
         refs.restoreRow?.configure(title: s.restoreOff, checked: DisplayControl.restoreOffEnabled)
         refs.kbRow?.configure(title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
                               checked: false)
@@ -527,6 +548,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             control.cancelRestoreIntent(reason: "interruptor desactivado")
         }
         control.write("mantener configuración de pantalla: \(DisplayControl.restoreOffEnabled ? "activado" : "desactivado")")
+        refresh()
+    }
+
+    private func toggleAutoOffOnConnect() {
+        DisplayControl.autoOffOnConnect.toggle()
+        let on = DisplayControl.autoOffOnConnect
+        control.write("apagar al conectar una externa: \(on ? "activado" : "desactivado")")
+        if on {
+            // Activarlo con el monitor ya puesto aplica la regla ahora mismo,
+            // y eso va a reconfigurar las pantallas: como las demás acciones
+            // que las tocan, el menú se cierra en vez de quedarse abierto
+            // sobre la pantalla que está a punto de desaparecer.
+            refs.menu?.cancelTracking()
+            control.autoOffArmNow(trigger: "interruptor activado", clearSuppression: true)
+        }
+        // Al desactivarlo no hace falta cancelar nada: si había una ventana
+        // abierta, el propio evaluador la cierra en el siguiente tick al ver
+        // que la preferencia ya no procede.
         refresh()
     }
 

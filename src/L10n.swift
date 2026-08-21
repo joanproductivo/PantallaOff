@@ -59,6 +59,7 @@ struct Strings {
     let keepAwake: String
     let keepDisplayOn: String
     let sleepOnLidClose: String
+    let autoOffOnConnect: String
     let restoreOff: String
     let openAtLogin: String
     let openAtLoginDisabledInSettings: String
@@ -135,6 +136,7 @@ extension Strings {
         keepAwake: "Mantener el Mac despierto",
         keepDisplayOn: "      …y la pantalla encendida",
         sleepOnLidClose: "Dormir al cerrar la tapa",
+        autoOffOnConnect: "Apagar la pantalla al conectar una externa",
         restoreOff: "Mantener configuración de pantalla al despertar/arrancar",
         openAtLogin: "Abrir al iniciar sesión",
         openAtLoginDisabledInSettings: "Abrir al iniciar sesión — desactivado en Ajustes",
@@ -213,6 +215,7 @@ extension Strings {
         keepAwake: "Keep the Mac awake",
         keepDisplayOn: "      …and the display on",
         sleepOnLidClose: "Sleep when the lid closes",
+        autoOffOnConnect: "Turn off the display when an external is connected",
         restoreOff: "Keep display setup after wake/startup",
         openAtLogin: "Open at login",
         openAtLoginDisabledInSettings: "Open at login — disabled in Settings",
