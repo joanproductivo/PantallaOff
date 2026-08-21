@@ -210,14 +210,31 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   ID nuevo y con `Location` ya legible, y CG añade el display **2,5 s** más tarde. De ahí
   que P1-C dispare con el match (fiable e inmediato) pero NO se fíe de la presencia del
   proxy como prueba de «sigue conectado»: para eso está el predicado sobre CG.
-- **El acelerador dispara solo con frecuencia, sin tocar el cable**: medido en el registro
-  del 2026-08-21, **19 re-encendidos** de la interna en 6 h 47 min (`cg-reenum; enable(1)
-  -> CGError 0`), siempre con `usables=1` y el monitor quieto. La causa es que CG
-  re-registra el externo con ID nuevo (4→25) y el acelerador, por diseño, trata un ID nuevo
-  como la firma del zombi. Es fail-open y por sí solo sólo cuesta un clic, pero condiciona
-  cualquier cosa que se acople a él —de ahí el anti-oscilación de P1-C—. **La causa raíz
-  merece su propio ciclo**: si el acelerador pudiera distinguir el re-registro con cable
-  puesto del zombi, sobrarían tanto esos 19 encendidos como el re-armado.
+- **El re-registro del externo depende del MONITOR, no del sistema ni de la app** (medido
+  2026-08-21 con una sonda que apaga y enciende la interna en ciclos, con la app cerrada):
+
+  | Monitor | Transiciones de la interna | Re-registros |
+  |---|---|---|
+  | vendor 7789, 2560×1080 | ~64 apagados en el registro | ~12 (19 %) |
+  | vendor 2533, 1920×1080 | 22 (11 ciclos apagar/encender) | **0** |
+
+  Un «re-registro» es que CG le cambie el ID al externo (4→25) **con el mismo
+  `DCPAVServiceProxy` vivo**, o sea sin que el cable se mueva. El acelerador lo trata como
+  la firma del zombi y enciende la interna; el encendido provoca otro re-registro, y de ahí
+  el parpadeo. Tres precisiones que costaron varias vueltas:
+  - **No es espontáneo**: lo dispara una TRANSICIÓN de la interna (medido a 2,8 s de un
+    apagado y a 1,7 s de un encendido). Sin tocar la pantalla no ocurre: 15 min y 7 min de
+    observación pasiva, cero.
+  - **La mayoría de los «disparos espurios» del registro eran desenchufes reales del
+    usuario.** Cruzando cada cambio de ID con la vida del proxy: de 5, **3 tenían el proxy
+    muriendo 10 s después** (desenchufe) y sólo 2 eran genuinos. No contar `cg-reenum` como
+    si todos fueran espurios: hay que cruzarlos con IOKit.
+  - **El acelerador NO está fallando**: en los genuinos hace lo que debe. Un plan para
+    «arreglarlo» aplazando su disparo se auditó y se retiró — habría creado el estado de
+    cero pantallas (ver `~/.claude/plans/acelerador-fuego-amigo.md`).
+
+  Conclusión operativa: **no se toca el acelerador.** Con un monitor que no re-registra, ni
+  el parpadeo ni el re-armado de P1-C llegan a activarse.
 - **Recién conectado, el externo parpadea en CG**: medido 2026-08-21 (08:24:36 match,
   08:24:37 `4[ext,act]`, **08:24:40 desaparece**, 08:24:41 vuelve). Por eso la ventana
   exige el MISMO ID ≥5 s y ≥5 s sin reconfiguraciones: un disparo a la primera lectura
