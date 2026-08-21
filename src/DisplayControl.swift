@@ -647,10 +647,15 @@ final class DisplayControl {
     /// apagada cierra por `ALREADY_OFF` sin tocar nada, y es lo que
     /// estructuralmente mata el caso; (2) el predicado de seguridad sobre CG;
     /// (3) la presencia física en IOKit al decidir; y sólo entonces (4) estos
-    /// 20 s de espera, la capa más débil, que existe porque el proxy External
-    /// tarda ~10 s en morir tras un desenchufe (medido 2026-08-21): antes de
-    /// ese plazo «queda un proxy vivo» no distingue el cable puesto del cable
-    /// recién quitado.
+    /// 12 s de espera, la capa más débil, que existe porque el proxy External
+    /// tarda ~10-13 s en morir tras un desenchufe (medido 2026-08-21): antes
+    /// de ese plazo «queda un proxy vivo» no distingue el cable puesto del
+    /// cable recién quitado. 12 s y no 20: la decisión de la ventana llega en
+    /// realidad a los 12 + ≥5 s de estabilidad = ≥17 s, holgadamente por
+    /// encima de la muerte del proxy, así que el margen sobra y la espera no
+    /// tiene por qué castigar tanto al caso normal. Menos de esto sí es
+    /// inseguro: el proxy podría seguir vivo al decidir y apagaríamos sobre un
+    /// zombi. NO acortar sin volver a medir la latencia de terminación.
     ///
     /// Anti-oscilación: si la interna vuelve sola poco después de que P1-C la
     /// apagara, algo la está reencendiendo —el acelerador dispara solo con
@@ -660,7 +665,7 @@ final class DisplayControl {
     /// la interna se queda encendida, que es la dirección segura.
     private func scheduleAutoOffRearm(reason: String) {
         guard Self.autoOffOnConnect, pc_is_laptop() else { return }
-        workQueue.asyncAfter(deadline: .now() + 20) {
+        workQueue.asyncAfter(deadline: .now() + 12) {
             guard Self.autoOffOnConnect else { return }
             if Date().timeIntervalSince(self.lastAutoOffAppliedAt) < 300 {
                 self.autoOffRearmStreak += 1

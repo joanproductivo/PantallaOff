@@ -129,11 +129,11 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
     El **re-armado** existe porque un encendido de una red de seguridad no deroga la regla
     del usuario: medido 2026-08-21, el externo se re-registró en CG (4→25) sin tocar el
     cable, el acelerador encendió la interna y P1-C se quedaba muerta con el monitor
-    delante. Espera 20 s (el proxy tarda ~10 s en morir: antes de ese plazo «hay proxy» no
+    delante. Espera 12 s (el proxy tarda ~10-13 s en morir: antes de ese plazo «hay proxy» no
     distingue el cable puesto del recién quitado) y exige proxy External vivo. Contra el
     zombi hay cuatro capas, en este orden: la ventana **sólo decide con la interna
     encendida** (si consta apagada cierra por `ALREADY_OFF`), el predicado sobre CG, la
-    presencia física al decidir, y por último esos 20 s. **No relajes las tres primeras
+    presencia física al decidir, y por último esos 12 s. **No relajes las tres primeras
     fiándote de la cuarta.** Lleva anti-oscilación: si la interna vuelve sola en menos de
     300 s tras un apagado de P1-C, al segundo intento seguido se deja de re-armar y se
     registra como anomalía. Sólo re-arman las redes de seguridad; la reversión de una
