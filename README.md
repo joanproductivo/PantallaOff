@@ -21,19 +21,18 @@ PantallaOff makes that screen **genuinely disappear**. Not dimmed: gone. macOS b
 you were running a single display. Windows stop wandering there. One click brings it back.
 
 ```
-┌───────────────────────────────────────────────┐
-│  Turn off MacBook display                     │  ← that's the whole idea
-│  ☐   Also turn off when an external connects  │
-│  ───────────────────────────────────────────  │
-│  ☐ Keep the Mac awake                         │
-│  ☐ Sleep when the lid closes                  │
-│  ☐ Turn off keyboard backlight                │
-│  ───────────────────────────────────────────  │
-│  ☐ Open at login                              │
-│  ───────────────────────────────────────────  │
-│  Quit PantallaOff                             │
-│  Idioma / Language                       ▶    │
-└───────────────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│  Turn off MacBook display            │  ← that's the whole idea
+│  ──────────────────────────────────  │
+│  ☐ Keep the Mac awake                │
+│  ☐ Sleep when the lid closes         │
+│  ☐ Turn off keyboard backlight       │
+│  ──────────────────────────────────  │
+│  ☐ Open at login                     │
+│  ──────────────────────────────────  │
+│  Quit PantallaOff                    │
+│  Idioma / Language              ▶    │
+└──────────────────────────────────────┘
 ```
 
 ## What you get
@@ -45,10 +44,10 @@ you were running a single display. Windows stop wandering there. One click bring
   handle the rest. It gives you your auto-brightness setting back when you turn it on again.
 - **Sleep when the lid closes** (optional): make closing the lid sleep the Mac even when
   plugged in with an external display (when macOS would keep it awake in clamshell mode).
-- **Also turn off when an external connects** (optional): a sub-option of *Turn off MacBook
-  display* itself. Plug the monitor in and the built-in goes off a few seconds later, through
-  the same guarded transaction as the click. Physical monitors only — virtual displays (VR
-  headsets, Sidecar) don't trigger it.
+- **Always turn it off when an external connects** (optional): once you've turned the display off,
+  this sub-option appears underneath. Tick it and, from then on, plugging a monitor in turns
+  the built-in off by itself a few seconds later, through the same guarded transaction as the
+  click. Physical monitors only — virtual displays (VR headsets, Sidecar) don't trigger it.
 - **Keep your display setup across sleep and reboots** (on by default): if the built-in was
   off when the Mac slept or shut down, it goes off again once a usable external display is
   stable. Can be turned off under ⌥ → Diagnostics.
@@ -118,22 +117,35 @@ usable external display has been stable for a few seconds, within a short window
 the same guarded transaction as the menu click. On by default; turn it off under
 **⌥ → Diagnostics → Keep display setup after wake/startup**.
 
-**Or have it turn off by itself when you plug the monitor in.** Right below *Turn off MacBook
-display* there's a sub-option, **…Also turn off when an external connects** (off by default). What counts as connecting: plugging in a
-physical monitor, launching the app with one already plugged in (that's what makes the rule
-survive reboots, together with *Open at login*), and flipping the switch itself — which
-closes the menu, since it's about to change your displays. If you click **Turn on MacBook
-display**, it stays on until the next connection (or until you relaunch the app). It goes off
-through the same guarded transaction: if there's no stable, usable external at that moment,
-nothing happens. Virtual displays (VR headsets, Sidecar) don't trigger it — use the click for
+**Or have it turn off by itself when you plug the monitor in.** Turn the display off first:
+a sub-option appears indented under the menu item, ready to tick.
+
+```
+┌────────────────────────────────────────────────────┐
+│  Turn on MacBook display                           │
+│  ☑   Always turn it off when an external connects  │
+└────────────────────────────────────────────────────┘
+```
+
+From then on, every time you plug a monitor in the built-in goes off by itself a few seconds
+later, through the same guarded transaction as the click: if there's no stable, usable
+external at that moment, nothing happens. The tick is remembered, so it **still applies after
+a reboot** — with *Open at login*, you sign in with the monitor plugged in and the built-in
+turns itself off. Virtual displays (VR headsets, Sidecar) don't trigger it — use the click for
 those.
+
+**And it unticks itself the moment you click "Turn on MacBook display"** (or *Force re-enable
+all displays*, under Diagnostics). That's deliberate:
+turning the screen on by hand while the monitor is plugged in contradicts the rule, and
+leaving it armed would turn your click into a fight with the app every time you reconnected
+the cable. When you want it back, turn the display off and the sub-option is there again.
 
 One warning that applies however you turn the built-in off: **if you unplug the monitor while
 the display is off and it doesn't come back on its own, plug it back in** — or close and
-reopen the lid. With this option enabled you'll be in that state more often, so it's worth
+reopen the lid. With this option ticked you'll be in that state more often, so it's worth
 knowing. And note that plugging it back in is a connection like any other, so the built-in
-will go off again a few seconds later. If what you want is the screen back, turn the switch
-off first.
+will go off again a few seconds later; if what you want is the screen back, click **Turn on
+MacBook display** (which also unticks the option).
 
 ## Using it
 
@@ -144,11 +156,8 @@ or your built-in is currently the source of a mirror set. To bring the screen ba
 again, quit the app, or run `~/rescue`.
 
 **Toggles don't close the menu.** Also-turn-off-on-connect, keep awake, sleep-on-lid-close,
-keyboard backlight, open at login and the language switch apply in place — the menu stays
-open and relabels itself. Actions that
-change your displays still close it, as they should — which is why *Also turn off when an
-external connects* closes the menu when you enable it with a monitor already plugged in: it's
-about to turn the built-in off.
+keyboard backlight, open at login and the language switch apply in place — the menu stays open
+and relabels itself. Actions that change your displays still close it, as they should.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
 state, the app version, *Open the log*, *Verbose logging*, the *Keep display setup after

@@ -22,19 +22,18 @@ comporta como si sólo tuvieras un monitor. Las ventanas dejan de irse ahí. Un 
 devuelve.
 
 ```
-┌──────────────────────────────────────────────┐
-│  Apagar pantalla del MacBook                 │  ← toda la idea es esto
-│  ☐   Apagar también al conectar una externa  │
-│  ──────────────────────────────────────────  │
-│  ☐ Mantener el Mac despierto                 │
-│  ☐ Dormir al cerrar la tapa                  │
-│  ☐ Apagar luz del teclado                    │
-│  ──────────────────────────────────────────  │
-│  ☐ Abrir al iniciar sesión                   │
-│  ──────────────────────────────────────────  │
-│  Salir de PantallaOff                        │
-│  Idioma / Language                      ▶    │
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│  Apagar pantalla del MacBook         │  ← toda la idea es esto
+│  ──────────────────────────────────  │
+│  ☐ Mantener el Mac despierto         │
+│  ☐ Dormir al cerrar la tapa          │
+│  ☐ Apagar luz del teclado            │
+│  ──────────────────────────────────  │
+│  ☐ Abrir al iniciar sesión           │
+│  ──────────────────────────────────  │
+│  Salir de PantallaOff                │
+│  Idioma / Language              ▶    │
+└──────────────────────────────────────┘
 ```
 
 ## Qué te llevas
@@ -46,10 +45,10 @@ devuelve.
   teclas de brillo. Al encenderla te devuelve tu ajuste de brillo automático.
 - **Dormir al cerrar la tapa** (opcional): que cerrar la tapa duerma el Mac aunque esté
   enchufado con pantalla externa (cuando macOS lo mantendría despierto en clamshell).
-- **Apagar también al conectar una externa** (opcional): una sub-opción del propio «Apagar
-  pantalla del MacBook». Enchufas el monitor y la interna se apaga sola unos segundos
-  después, por la misma transacción guardada del clic. Sólo con monitores físicos: las
-  pantallas virtuales (gafas de VR, Sidecar) no la disparan.
+- **Apagarla siempre al conectar una externa** (opcional): una vez has apagado la pantalla,
+  aparece esta sub-opción debajo. Márcala y, a partir de ahí, enchufar el monitor apaga la
+  interna sola unos segundos después, por la misma transacción guardada del clic. Sólo con
+  monitores físicos: las pantallas virtuales (gafas de VR, Sidecar) no la disparan.
 - **Mantener la configuración al despertar/arrancar** (por defecto): si la interna estaba
   apagada al dormir o apagar el Mac, se vuelve a apagar sola cuando hay un externo
   utilizable estable. Desactivable en ⌥ → Diagnóstico.
@@ -119,21 +118,35 @@ cuando un externo utilizable lleva unos segundos estable, dentro de una ventana 
 la misma transacción guardada del clic del menú. Activado por defecto; se desactiva en
 **⌥ → Diagnóstico → Mantener configuración de pantalla al despertar/arrancar**.
 
-**Y si quieres, que se apague sola al conectar el monitor.** Justo debajo de «Apagar pantalla
-del MacBook» hay una sub-opción, **…Apagar también al conectar una externa** (desactivada por
-defecto). Cuenta como conexión: enchufar un monitor
-físico, arrancar la app con uno ya enchufado (por eso la regla sobrevive a los reinicios, con
-*Abrir al iniciar sesión*) y activar el propio interruptor — que cierra el menú, porque va a
-tocar las pantallas. Si pulsas **Encender pantalla**, se queda encendida hasta la próxima
-conexión (o hasta que relances la app). Se apaga por la misma transacción guardada: si en ese
-momento no hay una externa utilizable y estable, no pasa nada. Las pantallas virtuales (gafas
-de VR, Sidecar) no la disparan; para ésas, el clic de siempre.
+**Y si quieres, que se apague sola al conectar el monitor.** Apaga primero la pantalla: bajo
+el ítem del menú aparecerá una sub-opción, sangrada, que puedes marcar.
+
+```
+┌────────────────────────────────────────────────┐
+│  Encender pantalla del MacBook                 │
+│  ☑   Apagarla siempre al conectar una externa  │
+└────────────────────────────────────────────────┘
+```
+
+A partir de ahí, cada vez que enchufes un monitor la interna se apaga sola, unos segundos
+después, por la misma transacción guardada del clic: si en ese momento no hay una externa
+utilizable y estable, no pasa nada. La marca se guarda, así que **sigue valiendo tras
+reiniciar** — con *Abrir al iniciar sesión*, entras con el monitor puesto y la interna se
+apaga sola. Las pantallas virtuales (gafas de VR, Sidecar) no la disparan; para ésas, el clic
+de siempre.
+
+**Y se desmarca sola en cuanto pulses «Encender pantalla del MacBook»** (o *Forzar
+reactivación de todas las pantallas*, en Diagnóstico). Es deliberado:
+encender a mano teniendo el monitor puesto contradice la regla, y dejarla armada convertiría
+tu clic en una pelea contra la app cada vez que reconectaras el cable. Cuando quieras volver a
+activarla, apaga la pantalla y la sub-opción estará ahí otra vez.
 
 Un aviso que vale para cualquier forma de apagar la interna: **si desenchufas el monitor con
 la pantalla apagada y no vuelve sola, reenchúfalo** — o cierra y abre la tapa. Con esta opción
-activada estarás más a menudo en ese estado, así que conviene saberlo. Y ojo: reenchufar es
-una conexión como cualquier otra, así que la interna volverá a apagarse a los pocos segundos.
-Si lo que quieres es recuperarla, desactiva el interruptor antes.
+marcada estarás más a menudo en ese estado, así que conviene saberlo. Y ojo: reenchufar es una
+conexión como cualquier otra, así que la interna volverá a apagarse a los pocos segundos; si
+lo que quieres es recuperarla, pulsa **Encender pantalla del MacBook** (que además desmarca la
+opción).
 
 ## Cómo se usa
 
@@ -143,11 +156,10 @@ El ítem aparece en gris, con el motivo, cuando no sería seguro: sin pantalla e
 utilizable, o cuando tu pantalla interna es la fuente de una duplicación. Para recuperarla:
 clic otra vez, salir de la app, o ejecutar `~/rescue`.
 
-**Los interruptores no cierran el menú.** Apagar también al conectar una externa, mantener despierto,
-dormir al cerrar la tapa, luz del teclado, abrir al iniciar sesión y el idioma se aplican en
-el sitio: el menú se queda abierto y se re-etiqueta solo. Las acciones que tocan pantallas sí lo cierran, como debe ser
-— y por eso *Apagar también al conectar una externa* cierra el menú cuando lo activas con un
-monitor ya enchufado: en unos segundos va a apagar la interna.
+**Los interruptores no cierran el menú.** Apagarla siempre al conectar una externa, mantener
+despierto, dormir al cerrar la tapa, luz del teclado, abrir al iniciar sesión y el idioma se
+aplican en el sitio: el menú se queda abierto y se re-etiqueta solo. Las acciones que tocan
+pantallas sí lo cierran, como debe ser.
 
 **Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
 pantallas, la versión de la app, *Abrir el registro*, *Registro detallado*, el interruptor

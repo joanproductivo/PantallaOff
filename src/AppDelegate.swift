@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var keepDisplayItem: NSMenuItem?
         var keepDisplayRow: StayOpenRow?
         var lidRow: StayOpenRow?
+        var autoOffItem: NSMenuItem?
         var autoOffRow: StayOpenRow?
         var restoreRow: StayOpenRow?
         var kbRow: StayOpenRow?
@@ -106,8 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Quitar la app es dejar de gestionar: la intención de restauración se
         // borra — salvo que esta terminación venga del apagado del Mac, cuyo
         // contrato es justo conservarla para el próximo arranque. (El apagado
-        // al conectar no guarda intención: es una regla permanente, así que al
-        // relanzar la app vuelve a evaluarla con lo que haya conectado.)
+        // al conectar no guarda intención: la preferencia misma sobrevive, y
+        // al relanzar la app vuelve a evaluarla con lo que haya conectado.)
         control.appWillTerminate()
 
         // Las assertions de energía mueren con el proceso, pero soltarlas
@@ -219,22 +220,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(displayItem)
         refs.displayItem = displayItem
 
-        // Sub-opción de la acción principal (P1-C): «además, hazlo solo cada
-        // vez que conecte una externa». Cuelga del ítem de apagar —sangrada,
-        // como «…y la pantalla encendida» cuelga de «Mantener despierto»—
-        // porque es la misma decisión, automatizada; ponerla abajo, entre los
-        // interruptores generales, la desligaba de lo que hace.
+        // Sub-opción de la acción principal (P1-C): «y hazlo solo cada vez que
+        // conecte una externa». Cuelga del ítem de apagar —sangrada, como
+        // «…y la pantalla encendida» cuelga de «Mantener despierto»— y sólo
+        // existe CON LA INTERNA YA APAGADA, igual que aquélla sólo existe con
+        // «Mantener despierto» activado.
         //
-        // Se muestra SIEMPRE (en portátiles), también con la interna ya
-        // apagada: es justo entonces cuando hace falta poder desactivarla,
-        // p. ej. antes de reenchufar el monitor para recuperar la pantalla.
-        if pc_is_laptop() {
-            let (autoItem, autoRow) = stayOpenRow(title: s.autoOffOnConnect,
-                                                  checked: DisplayControl.autoOffOnConnect) { [weak self] in
-                self?.toggleAutoOffOnConnect()
-            }
-            menu.addItem(autoItem)
-            refs.autoOffRow = autoRow
+        // No es un capricho de presentación: la opción automatiza una decisión
+        // que el usuario tiene que haber tomado antes. Ofrecerla con la
+        // pantalla encendida invitaría a programar un apagado sin haber
+        // apagado nunca, y «Encender pantalla» la desactiva justamente porque
+        // encender a mano contradice la regla.
+        if pc_is_laptop(), state == .offByUs {
+            insertAutoOffRow(in: menu, after: displayItem)
         }
 
         if state != .offByUs, control.builtInIsMirrorMaster {
@@ -405,6 +403,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return (menuItem, row)
     }
 
+    private func insertAutoOffRow(in menu: NSMenu, after displayItem: NSMenuItem) {
+        let (ai, aRow) = stayOpenRow(title: L10n.t.autoOffOnConnect,
+                                     checked: DisplayControl.autoOffOnConnect) { [weak self] in
+            self?.toggleAutoOffOnConnect()
+        }
+        menu.insertItem(ai, at: menu.index(of: displayItem) + 1)
+        refs.autoOffItem = ai
+        refs.autoOffRow = aRow
+    }
+
     private func insertKeepDisplayRow(in menu: NSMenu, after awakeItem: NSMenuItem) {
         let (di, dRow) = stayOpenRow(title: L10n.t.keepDisplayOn,
                                      checked: KeepAwake.keepsDisplayOn) { [weak self] in
@@ -451,9 +459,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             refs.keepDisplayRow = nil
         }
 
+        // La sub-opción de apagado automático aparece y desaparece con el
+        // estado de la pantalla, igual que «…y la pantalla encendida» con
+        // «Mantener despierto»: se inserta o se quita del menú VIVO, sin
+        // reconstruirlo (eso cancelaría el tracking).
+        if pc_is_laptop(), state == .offByUs {
+            if refs.autoOffItem == nil, let menu = refs.menu, let di = refs.displayItem {
+                insertAutoOffRow(in: menu, after: di)
+            }
+            refs.autoOffRow?.configure(title: s.autoOffOnConnect,
+                                       checked: DisplayControl.autoOffOnConnect)
+        } else if let ai = refs.autoOffItem {
+            ai.menu?.removeItem(ai)
+            refs.autoOffItem = nil
+            refs.autoOffRow = nil
+        }
+
         refs.lidRow?.configure(title: s.sleepOnLidClose, checked: LidSleep.enabled)
-        refs.autoOffRow?.configure(title: s.autoOffOnConnect,
-                                   checked: DisplayControl.autoOffOnConnect)
         refs.restoreRow?.configure(title: s.restoreOff, checked: DisplayControl.restoreOffEnabled)
         refs.kbRow?.configure(title: KeyboardLight.isOn ? s.keyboardLightOff : s.keyboardLightOn,
                               checked: false)
@@ -562,17 +584,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DisplayControl.autoOffOnConnect.toggle()
         let on = DisplayControl.autoOffOnConnect
         control.write("apagar al conectar una externa: \(on ? "activado" : "desactivado")")
-        if on {
-            // Activarlo con el monitor ya puesto aplica la regla ahora mismo,
-            // y eso va a reconfigurar las pantallas: como las demás acciones
-            // que las tocan, el menú se cierra en vez de quedarse abierto
-            // sobre la pantalla que está a punto de desaparecer.
-            refs.menu?.cancelTracking()
-            control.autoOffArmNow(trigger: "interruptor activado", clearSuppression: true)
-        }
-        // Al desactivarlo no hace falta cancelar nada: si había una ventana
-        // abierta, el propio evaluador la cierra en el siguiente tick al ver
-        // que la preferencia ya no procede.
+        // No hay nada que aplicar aquí y ahora: esta fila sólo existe con la
+        // interna ya apagada, así que la regla actuará en la próxima conexión.
+        // Por eso tampoco cierra el menú, al contrario que las acciones que
+        // tocan pantallas. Y al desactivarla, si hubiera una ventana abierta,
+        // el evaluador la cierra en el siguiente tick.
         refresh()
     }
 

@@ -215,20 +215,19 @@ final class DisplayControl {
         // sólo actúan con algo apagado, estado incompatible con una ventana
         // armada.
         cancelRestoreIntent(reason: "encender explícito del menú")
-        // Y además silencia P1-C un rato: el enable re-crea el proxy Embedded
-        // de la interna y, si alguna vía de re-encendido llegara a tocar
-        // también el del externo, ese match no debe convertirse en «se ha
-        // conectado un monitor» y deshacer el clic que el usuario acaba de
-        // dar. Suprimir es fail-open: nunca provoca un apagado.
-        suppressAutoOff(seconds: 15, reason: "encender explícito del menú")
+        // Y APAGA la regla de P1-C. Encender a mano contradice «apágala al
+        // conectar una externa»: si el usuario quiere ver la interna teniendo
+        // el monitor puesto, la regla ya no describe lo que quiere, y
+        // mantenerla armada convertiría su clic en una pelea contra la app a
+        // cada reconexión. Es también lo que hace desaparecer su fila del
+        // menú, que sólo existe con la interna apagada.
+        if Self.autoOffOnConnect {
+            Self.autoOffOnConnect = false
+            write("apagar al conectar una externa: desactivado (encender explícito del menú)")
+            notifyChange()
+        }
         workQueue.async {
             let ok = self.turnOnAllSync()
-            // Y se renueva contando desde que el enable TERMINA: se han medido
-            // transacciones de CoreGraphics bloqueadas ~21 s, que se comerían
-            // el silencio entero mientras corren. Aquí ya estamos en
-            // workQueue, la cola donde vive este estado.
-            self.autoOffSuppressedUntil = max(self.autoOffSuppressedUntil,
-                                              Date().addingTimeInterval(15))
             DispatchQueue.main.async { completion?(ok) }
         }
     }
@@ -598,11 +597,13 @@ final class DisplayControl {
         // preferencia (migrada de otro perfil, o escrita a mano) armaría
         // ventanas que nadie puede parar desde el menú.
         guard pc_is_laptop() else { return }
-        // El silencio se consulta AQUÍ, en el disparo automático, y no dentro
-        // de openOffWindow: una orden explícita del usuario (activar el
-        // interruptor) tiene que aplicarse siempre, aunque acabe de despertar
-        // el Mac o de encender la pantalla a mano. Silenciar lo que el usuario
-        // acaba de pedir sería un interruptor que no hace nada.
+        // El silencio se consulta AQUÍ, en el disparo automático de IOKit, que
+        // es el único que puede confundir un baile de proxies con una
+        // conexión. La otra vía que abre ventanas de P1-C (`autoOffArmNow`, al
+        // arrancar la app) no lo comprueba porque no puede estar bajo
+        // silencio: se llama una sola vez, antes de que ningún dormir,
+        // despertar ni encendido haya podido armarlo. Y aun así,
+        // `checkOffWindow` lo re-comprueba al decidir.
         workQueue.async {
             guard Date() >= self.autoOffSuppressedUntil else {
                 self.write("apagado al conectar: conexión dentro del silencio (\(trigger)); no se abre ventana")
@@ -612,25 +613,18 @@ final class DisplayControl {
         }
     }
 
-    /// Evalúa la regla de P1-C con lo que YA está conectado: al arrancar la app
-    /// (el contrato «persiste al reiniciar») y al activar el interruptor. Corre
-    /// en ioQueue porque `deadProxyIDs` está confinado ahí.
-    ///
-    /// `clearSuppression` para las órdenes EXPLÍCITAS del usuario (activar el
-    /// interruptor): pedir la regla a mano justo después de encender la
-    /// pantalla o de despertar tiene que funcionar, no quedarse callado dentro
-    /// del silencio — un interruptor que no hace nada es peor que no tenerlo.
-    func autoOffArmNow(trigger: String, clearSuppression: Bool = false) {
+    /// Evalúa la regla de P1-C con lo que YA está conectado, al arrancar la
+    /// app: es lo que hace que la preferencia siga valiendo tras reiniciar el
+    /// Mac, donde el fichero de estado se descarta y todo vuelve encendido.
+    /// Corre en ioQueue porque `deadProxyIDs` está confinado ahí.
+    func autoOffArmNow(trigger: String) {
         guard Self.autoOffOnConnect, pc_is_laptop() else { return }
         ioQueue.async {
             guard self.externalProxyCount(excluding: self.deadProxyIDs) > 0 else {
                 self.write("apagado al conectar: sin conexión externa física ahora (\(trigger))")
                 return
             }
-            self.workQueue.async {
-                if clearSuppression { self.autoOffSuppressedUntil = .distantPast }
-                self.openOffWindow(kind: .autoOff, trigger: trigger)
-            }
+            self.workQueue.async { self.openOffWindow(kind: .autoOff, trigger: trigger) }
         }
     }
 
@@ -824,9 +818,10 @@ final class DisplayControl {
     /// Sólo se escribe en evaluateSafetySync: workQueue, sin carreras.
     private var lastReconfigAt = Date.distantPast
     /// Hasta cuándo P1-C se calla. Sólo suprime apagados, nunca los provoca:
-    /// cubre el re-encendido explícito del menú y el despertar, donde un
-    /// posible match de proxies no significa «acabas de conectar un monitor».
-    /// CONFINADA a workQueue.
+    /// cubre el dormir y el apagar del Mac (90 s) y el despertar (60 s), donde
+    /// un posible baile de proxies no significa «acabas de conectar un
+    /// monitor». El encendido explícito del menú no necesita silencio: apaga
+    /// la regla entera. CONFINADA a workQueue.
     private var autoOffSuppressedUntil = Date.distantPast
     /// true desde willPowerOff hasta la muerte del proceso (o su reset si el
     /// apagado se cancela). Sólo se toca en el hilo principal.
@@ -921,8 +916,9 @@ final class DisplayControl {
         // recalcula la intención a false pero no cerraba la ventana — y una
         // cancelación desde otro hilo puede cruzarse con un tick ya encolado.
         // Re-comprobar aquí, en el mismo tick que decide, cierra las dos vías;
-        // para P1-C es además lo que hace que desactivar el interruptor cierre
-        // su ventana sin necesidad de una cancelación explícita.
+        // para P1-C es además lo que hace que desmarcar la sub-opción (o
+        // pulsar «Encender pantalla», que la desmarca) cierre su ventana sin
+        // necesidad de una cancelación explícita.
         let stillApplies: Bool
         switch w.kind {
         case .restore:
@@ -931,9 +927,8 @@ final class DisplayControl {
             // El silencio se re-comprueba también AQUÍ, no sólo al abrir: una
             // ventana abierta justo antes de que se arme el silencio (o antes
             // de un reposo, cuyo reloj la prorroga) no debe decidir después.
-            // Cerrarla es la dirección fail-open. Una orden explícita del
-            // usuario nunca queda atrapada aquí: `autoOffArmNow` limpia el
-            // silencio antes de abrir su ventana.
+            // Cerrarla es la dirección fail-open, y sólo retrasa el apagado
+            // hasta la siguiente conexión.
             stillApplies = Self.autoOffOnConnect && Date() >= autoOffSuppressedUntil
         }
         guard stillApplies else {

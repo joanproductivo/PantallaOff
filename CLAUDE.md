@@ -94,7 +94,8 @@ Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre proceso
 `UserDefaults` (dominio del bundle id — de ahí el aviso de arriba): `restoreOffEnabled` y
 `restoreIntent` (P1-R; la intención sobrevive al reinicio y NUNCA es el ancla del rescate —
 eso es el fichero de estado), `autoOffOnConnect` (P1-C; sin intención asociada: es una
-regla permanente que se reevalúa en cada arranque), `sleepOnLidClose`, `verboseLogging` y
+regla revocable que sobrevive al reinicio y se reevalúa en cada arranque, pero que un
+«Encender pantalla» explícito desactiva), `sleepOnLidClose`, `verboseLogging` y
 `language`.
 
 ### Las cinco invariantes
@@ -110,17 +111,21 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
   - **P1-R, restauración** («Mantener configuración de pantalla al despertar/arrancar»,
     activada por defecto, desactivable en ⌥ → Diagnóstico): re-aplica una decisión
     explícita previa del usuario tras despertar o arrancar.
-  - **P1-C, apagado al conectar** («…Apagar también al conectar una externa», sub-opción
-    del ítem principal del menú, **desactivada por defecto**): aplica una regla permanente
-    del usuario al conectar un monitor. La dispara ÚNICAMENTE el nacimiento de un `DCPAVServiceProxy` con
-    `Location == External` en IOKit — conexión física, arranque con el monitor puesto, o
-    activación del interruptor — y **nunca lo que enumere CoreGraphics**: un zombi es un
-    externo utilizable para CG (se re-registra con ID nuevo y parece una conexión), y
-    apagar ahí deja cero pantallas reales. **Se calla** —y cierra su ventana— 15 s tras un
-    «Encender» del menú, y 90 s desde que el Mac se duerme o se apaga, renovados 60 s al
-    despertar: en todos esos casos un match de proxies no significa «acabas de conectar un
-    monitor». El silencio se comprueba al abrir la ventana Y al decidir; lo único que lo
-    atraviesa es una orden explícita (activar el interruptor), que lo limpia. Un display
+  - **P1-C, apagado al conectar** («…Apagarla siempre al conectar una externa»,
+    **desactivada por defecto**): aplica una regla del usuario al conectar un monitor.
+    Su fila es una **sub-opción del ítem principal y sólo existe con la interna ya
+    apagada** —como «…y la pantalla encendida» bajo «Mantener despierto»—: automatiza una
+    decisión que hay que haber tomado antes, así que no se puede programar un apagado sin
+    haber apagado. Y **«Encender pantalla» la desactiva**: encender a mano contradice la
+    regla, y dejarla armada convertiría el clic del usuario en una pelea contra la app a
+    cada reconexión. La dispara ÚNICAMENTE el nacimiento de un `DCPAVServiceProxy` con
+    `Location == External` en IOKit — conexión física, o arranque de la app con el monitor
+    puesto, que es lo que hace que la preferencia siga valiendo tras reiniciar — y **nunca
+    lo que enumere CoreGraphics**: un zombi es un externo utilizable para CG (se
+    re-registra con ID nuevo y parece una conexión), y apagar ahí deja cero pantallas
+    reales. **Se calla** —y cierra su ventana— 90 s desde que el Mac se duerme o se apaga,
+    renovados 60 s al despertar: ahí un match de proxies no significa «acabas de conectar
+    un monitor». El silencio se comprueba al abrir la ventana Y al decidir. Un display
     virtual no la dispara (no tiene proxy).
 
   Watchdog, wake, callbacks y el vigía de **terminación** de IOKit sólo pueden
@@ -198,8 +203,9 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
 - **Apagar la interna desde el menú sólo mata su propio proxy Embedded** (medido
   2026-08-21, cuatro veces): el External conserva su registry ID. El re-encendido
   **automático** tras un desenchufe tampoco crea ningún External (tres veces). La vía
-  «Encender pantalla» del menú con el monitor puesto **no está medida** — de ahí que P1-C
-  se calle 15 s tras un encendido explícito: cubre ese hueco sin depender de la medición.
+  «Encender pantalla» del menú con el monitor puesto **no está medida**, y ya no hace
+  falta: ese clic desactiva P1-C, así que aunque re-creara el proxy External no habría
+  regla que disparar.
 - **`hw.model` ya no contiene "Book"** desde 2022 (`Mac15,10`). Para detectar portátil se usa
   la presencia de `AppleSmartBattery`.
 
