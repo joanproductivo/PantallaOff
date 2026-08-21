@@ -105,8 +105,9 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
 - **P1 — fail-open.** *Ninguna ruta automática puede DESACTIVAR un display*, con DOS
   excepciones acotadas, ambas gobernadas por un interruptor del usuario y ambas por la
   **misma ventana de apagado diferido**: 60 s (con el reloj pausado mientras el sistema
-  tiene las pantallas dormidas), el MISMO externo utilizable ≥5 s (continuidad por ID),
-  ≥5 s sin reconfiguraciones, un solo intento, y la transacción completa del menú
+  tiene las pantallas dormidas), el MISMO externo utilizable durante
+  `estabilidadSegundos` (continuidad por ID; 2 s, medido) y otro tanto sin
+  reconfiguraciones, un solo intento, y la transacción completa del menú
   (precondición + P5 + dead-man + postcondición).
   - **P1-R, restauración** («Mantener configuración de pantalla al despertar/arrancar»,
     activada por defecto, desactivable en ⌥ → Diagnóstico): re-aplica una decisión
@@ -237,7 +238,7 @@ leyendo la documentación. No los "corrijas" sin volver a medirlos:
   el parpadeo ni el re-armado de P1-C llegan a activarse.
 - **Recién conectado, el externo parpadea en CG**: medido 2026-08-21 (08:24:36 match,
   08:24:37 `4[ext,act]`, **08:24:40 desaparece**, 08:24:41 vuelve). Por eso la ventana
-  exige el MISMO ID ≥5 s y ≥5 s sin reconfiguraciones: un disparo a la primera lectura
+  exige el MISMO ID 2 s y otro tanto sin reconfiguraciones: un disparo a la primera lectura
   apagaría la interna en mitad del baile.
 - **Apagar la interna desde el menú sólo mata su propio proxy Embedded** (medido
   2026-08-21, cuatro veces): el External conserva su registry ID. El re-encendido

@@ -35,6 +35,24 @@ final class DisplayControl {
     /// corto frente a un cuelgue real de la app.
     private let deadmanSeconds = 30
 
+    /// Cuánto tiene que llevar quieto el mismo externo utilizable antes de que
+    /// la ventana de apagado diferido decida: ni el ID puede cambiar, ni puede
+    /// haber llegado una reconfiguración, durante este plazo.
+    ///
+    /// 2 s y no 5. El plazo existe por un parpadeo medido al conectar (CG ve
+    /// el externo, lo pierde a los 4 s y lo recupera a los 5), y 5 s era el
+    /// margen prudente cuando ese caso era el único dato. Con seis conexiones
+    /// medidas (2026-08-21, dos monitores) el asentamiento normal es de ~1 s y
+    /// sólo una parpadeó, así que 2 s lo cubren con el doble de margen y
+    /// recortan a la mitad la espera que ve el usuario.
+    ///
+    /// Bajarlo más no compensa: por debajo de ~1,5 s se decidiría antes de que
+    /// CG haya registrado el monitor siquiera. Y si aun así se decidiera en
+    /// mitad de un parpadeo, la red es la POSTCONDICIÓN de `turnOffBuiltInSync`
+    /// —que sondea 2 s buscando externo utilizable y revierte— así que el coste
+    /// de equivocarse es un apagado que se deshace, nunca una pantalla perdida.
+    private static let estabilidadSegundos: TimeInterval = 2
+
     /// Cada cuánto reevalúa el watchdog aunque no haya callback.
     /// El caso peligroso (externo dormido, KVM conmutado, entrada del monitor
     /// cambiada) NO genera callback de reconfiguración: sólo lo pilla el timer.
@@ -314,7 +332,7 @@ final class DisplayControl {
         // Despertar: comprobar y, si hace falta, ENCENDER. Los únicos
         // re-apagados posibles son las dos excepciones acotadas (P1-R y P1-C),
         // y ninguna corre aquí: abren una ventana y exigen el mismo externo
-        // utilizable ≥5 s sin reconfiguraciones antes de re-aplicar por la
+        // utilizable estable sin reconfiguraciones antes de re-aplicar por la
         // transacción completa del menú — ésa es la respuesta a la carrera de
         // re-enumeración (tarda segundos, más con un dock) que hacía peligroso
         // un re-aplicador ingenuo tras el wake.
@@ -651,7 +669,7 @@ final class DisplayControl {
     /// tarda ~10-13 s en morir tras un desenchufe (medido 2026-08-21): antes
     /// de ese plazo «queda un proxy vivo» no distingue el cable puesto del
     /// cable recién quitado. 12 s y no 20: la decisión de la ventana llega en
-    /// realidad a los 12 + ≥5 s de estabilidad = ≥17 s, holgadamente por
+    /// realidad a los 12 s + la estabilidad exigida, holgadamente por
     /// encima de la muerte del proxy, así que el margen sobra y la espera no
     /// tiene por qué castigar tanto al caso normal. Menos de esto sí es
     /// inseguro: el proxy podría seguir vivo al decidir y apagaríamos sobre un
@@ -830,7 +848,7 @@ final class DisplayControl {
     //
     // Las DOS excepciones acotadas de P1 (ver CLAUDE.md) comparten mecanismo:
     // ninguna apaga nada al vuelo. Abren una ventana de 60 s y sólo actúan
-    // cuando el MISMO externo utilizable lleva ≥5 s siéndolo y ≥5 s sin
+    // cuando el MISMO externo utilizable lleva `estabilidadSegundos` siéndolo y otro tanto sin
     // reconfiguraciones, y siempre por la MISMA transacción del menú
     // (precondición + P5 + dead-man + postcondición). Un solo intento.
     //
@@ -1070,9 +1088,10 @@ final class DisplayControl {
             offWindow = w
             return
         }
-        // Continuidad por ID: el MISMO externo utilizable ≥5 s. El silencio de
-        // eventos solo no basta — el log del 2026-08-06 muestra huecos >5 s en
-        // mitad de bailes de cables aún en curso.
+        // Continuidad por ID: el MISMO externo utilizable durante
+        // `estabilidadSegundos`, y otro tanto sin reconfiguraciones. El
+        // silencio de eventos solo no basta — el log del 2026-08-06 muestra
+        // huecos en mitad de bailes de cables aún en curso.
         let ext = firstUsableExternalID()
         guard ext != 0 else {
             w.stableID = 0
@@ -1088,8 +1107,8 @@ final class DisplayControl {
             return
         }
         guard let since = w.stableSince,
-              now.timeIntervalSince(since) >= 5,
-              now.timeIntervalSince(lastReconfigAt) >= 5 else {
+              now.timeIntervalSince(since) >= Self.estabilidadSegundos,
+              now.timeIntervalSince(lastReconfigAt) >= Self.estabilidadSegundos else {
             offWindow = w
             return
         }
@@ -1116,8 +1135,8 @@ final class DisplayControl {
         // El literal de P1-R se conserva palabra por palabra: los README citan
         // líneas del registro y el log es la fuente de esas citas.
         write(kind == .restore
-              ? "restauración: externo \(ext) estable ≥5 s; re-aplicando el apagado del usuario"
-              : "apagado al conectar: externo \(ext) estable ≥5 s; apagando la interna")
+              ? "restauración: externo \(ext) estable; re-aplicando el apagado del usuario"
+              : "apagado al conectar: externo \(ext) estable; apagando la interna")
         switch turnOffBuiltInSync() {
         case .success:
             if kind == .restore {
