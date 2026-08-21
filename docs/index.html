@@ -36,7 +36,7 @@
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="icon" href="assets/icon-512.png" type="image/png" sizes="512x512">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
-<link rel="stylesheet" href="assets/styles.css?v=1">
+<link rel="stylesheet" href="assets/styles.css?v=3">
 </head>
 <body>
 
@@ -93,7 +93,7 @@
         <li>Apple Silicon</li>
         <li>macOS 13+</li>
         <li>Free · MIT</li>
-        <li><span class="version-badge" id="version-badge">v1.2.1</span></li>
+        <li><span class="version-badge" id="version-badge">v1.3.0</span></li>
       </ul>
       <p class="fineprint">No account. No telemetry. No network access. Every line is on GitHub.</p>
     </div>
@@ -128,6 +128,9 @@
         <button type="button" class="menu-item menu-primary" id="menu-toggle" aria-pressed="false">
           <span class="menu-check" aria-hidden="true"></span>
           <span class="menu-label">Turn off MacBook display</span>
+        </button>
+        <button type="button" class="menu-item menu-sub" id="menu-autooff" data-toggle aria-pressed="false" hidden>
+          <span class="menu-check" aria-hidden="true"></span><span class="menu-label">Always turn it off when an external connects</span>
         </button>
         <hr>
         <button type="button" class="menu-item" data-toggle aria-pressed="false">
@@ -260,11 +263,16 @@
       </article>
       <article class="card feature">
         <span class="feature-num">05</span>
+        <h3>Off automatically when you plug a monitor in</h3>
+        <p>Turn the display off once and a sub-option appears underneath. Tick it, and from then on plugging a monitor in turns the built-in off by itself, a few seconds later. Clicking <em>Turn on</em> unticks it — turning the screen on by hand contradicts the rule.</p>
+      </article>
+      <article class="card feature">
+        <span class="feature-num">06</span>
         <h3>Your setup survives sleep and reboots</h3>
         <p>If the built-in was off when the Mac slept or shut down, it goes off again — but only once a usable external display has been stable for a few seconds. On by default, and you can turn it off.</p>
       </article>
       <article class="card feature">
-        <span class="feature-num">06</span>
+        <span class="feature-num">07</span>
         <h3>English and Spanish, plus start at login</h3>
         <p>The language switches from the menu and applies instantly. Opening at login is one more switch, if you want it.</p>
       </article>
@@ -294,9 +302,10 @@
         <h3><span class="pillar-tag">Rule 1</span> No automatic path can turn a screen off</h3>
         <p>
           Only your click can. The watchdog, the wake handler and every system callback are allowed
-          to turn displays <em>on</em> — never off. There is exactly one scoped exception, and it's
-          the one you asked for: re-applying <em>your own</em> previous choice after wake or startup,
-          through the same guarded transaction. You can switch it off.
+          to turn displays <em>on</em> — never off. There are exactly two scoped exceptions, and both
+          are ones you asked for: re-applying <em>your own</em> previous choice after wake or startup,
+          and turning the built-in off when you plug a monitor in. Both go through the same guarded
+          transaction, both wait for a stable external display, and both can be switched off.
         </p>
       </article>
       <article class="card pillar">
@@ -363,7 +372,7 @@
         <li><strong>Reconnect the external monitor.</strong> The built-in comes straight back.</li>
         <li><strong>Close and reopen the lid.</strong> The screen is turned on before the Mac sleeps, so it's already alive when you open it.</li>
         <li><strong>Run <code>~/rescue</code>.</strong> A standalone binary deliberately kept at a short path, so you can type it blind or over SSH. It does nothing at all when there's nothing to rescue.</li>
-        <li><strong>Reboot.</strong> The off state never survives a restart — that's deliberate, and it's the final safety net.</li>
+        <li><strong>Reboot.</strong> The saved off state never survives a restart — that's deliberate, and it's the final safety net. (If the built-in goes off again afterwards, that's one of the two opt-in features re-applying your own choice, through the full guarded transaction.)</li>
       </ul>
     </div>
   </div>
@@ -451,7 +460,7 @@ open /Applications/PantallaOff.app</code></pre>
       <details>
         <summary>Is this safe? What if my screen doesn't come back?</summary>
         <div class="faq-body">
-          <p>It's the question the app is designed around. No automatic path can ever turn a display off — only your click. The display's ID is written to disk before anything is switched off, a recovery watchdog runs in a separate process that survives the app being killed, and an IOKit watcher catches the one case macOS itself misses. If everything failed at once you still have four ways back: reconnect the monitor, close and reopen the lid, run <code>~/rescue</code>, or reboot — the off state never survives a restart.</p>
+          <p>It's the question the app is designed around. No automatic path can turn a display off on its own — only your click, or one of the two opt-in features re-applying a choice you already made, through the very same guarded transaction. The display's ID is written to disk before anything is switched off, a recovery watchdog runs in a separate process that survives the app being killed, and an IOKit watcher catches the one case macOS itself misses. If everything failed at once you still have four ways back: reconnect the monitor, close and reopen the lid, run <code>~/rescue</code>, or reboot — the off state never survives a restart.</p>
         </div>
       </details>
       <details>
@@ -476,6 +485,12 @@ open /Applications/PantallaOff.app</code></pre>
         <summary>Does it collect any data?</summary>
         <div class="faq-body">
           <p>None. There is no account, no analytics and no network access. In normal operation it doesn't even write a log file — events stay in a small in-memory buffer, and only reach the disk if something actually goes wrong, so that a black screen can be diagnosed afterwards.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Can it turn the screen off by itself when I plug a monitor in?</summary>
+        <div class="faq-body">
+          <p>Yes, and it's off by default. Turn the display off once and a sub-option appears right underneath the menu item; tick it, and from then on plugging a monitor in turns the built-in off by itself a few seconds later — through the same guarded transaction as your click, so if there's no stable external display at that moment, nothing happens. The tick is remembered across reboots. Clicking <em>Turn on MacBook display</em> unticks it, because turning the screen on by hand contradicts the rule. Physical monitors only: virtual displays (VR headsets, Sidecar) don't trigger it.</p>
         </div>
       </details>
       <details>
@@ -559,7 +574,7 @@ open /Applications/PantallaOff.app</code></pre>
   <button type="button" class="nudge-close" aria-label="Dismiss">×</button>
 </div>
 
-<script src="assets/app.js?v=1" defer></script>
+<script src="assets/app.js?v=3" defer></script>
 
 <script type="application/ld+json">
 {
@@ -571,7 +586,7 @@ open /Applications/PantallaOff.app</code></pre>
       "url": "https://pantallaoff.joanproductivo.com/",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "macOS 13.0 or later, Apple Silicon",
-      "softwareVersion": "1.2.1",
+      "softwareVersion": "1.3.0",
       "description": "Menu bar app for macOS that turns off a MacBook's built-in display with one click, without closing the lid, while the keyboard, trackpad and Touch ID keep working.",
       "downloadUrl": "https://github.com/joanproductivo/PantallaOff/releases/latest",
       "softwareHelp": "https://github.com/joanproductivo/PantallaOff#readme",
@@ -586,6 +601,7 @@ open /Applications/PantallaOff.app</code></pre>
         "Keep the Mac awake, optionally with the display on",
         "Turn the keyboard backlight off and on",
         "Sleep when the lid closes, even with an external display connected",
+        "Turn the built-in off automatically when an external display is connected",
         "Restore the display setup after wake or startup",
         "Start at login",
         "English and Spanish interface"
@@ -595,7 +611,7 @@ open /Applications/PantallaOff.app</code></pre>
       "@type": "FAQPage",
       "mainEntity": [
         { "@type": "Question", "name": "Is this safe? What if my screen doesn't come back?",
-          "acceptedAnswer": { "@type": "Answer", "text": "No automatic path can turn a display off — only your click. The display's ID is written to disk before anything is switched off, a recovery watchdog runs in a separate process that survives the app being killed, and an IOKit watcher catches the case macOS itself misses. There are four ways back: reconnect the monitor, close and reopen the lid, run ~/rescue, or reboot — the off state never survives a restart." } },
+          "acceptedAnswer": { "@type": "Answer", "text": "No automatic path can turn a display off on its own — only your click, or one of the two opt-in features re-applying a choice you already made, through the same guarded transaction. The display's ID is written to disk before anything is switched off, a recovery watchdog runs in a separate process that survives the app being killed, and an IOKit watcher catches the case macOS itself misses. There are four ways back: reconnect the monitor, close and reopen the lid, run ~/rescue, or reboot — the off state never survives a restart." } },
         { "@type": "Question", "name": "Does it work without an external monitor?",
           "acceptedAnswer": { "@type": "Answer", "text": "No, deliberately. With no usable second display, turning off the built-in would leave you with no screen at all, and at zero active displays macOS cannot bring a panel back by software. The menu item greys itself out and explains why." } },
         { "@type": "Question", "name": "Does it work with a TV, an iPad via Sidecar, or a VR headset?",

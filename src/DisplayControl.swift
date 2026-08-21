@@ -35,6 +35,24 @@ final class DisplayControl {
     /// corto frente a un cuelgue real de la app.
     private let deadmanSeconds = 30
 
+    /// Cuánto tiene que llevar quieto el mismo externo utilizable antes de que
+    /// la ventana de apagado diferido decida: ni el ID puede cambiar, ni puede
+    /// haber llegado una reconfiguración, durante este plazo.
+    ///
+    /// 2 s y no 5. El plazo existe por un parpadeo medido al conectar (CG ve
+    /// el externo, lo pierde a los 4 s y lo recupera a los 5), y 5 s era el
+    /// margen prudente cuando ese caso era el único dato. Con seis conexiones
+    /// medidas (2026-08-21, dos monitores) el asentamiento normal es de ~1 s y
+    /// sólo una parpadeó, así que 2 s lo cubren con el doble de margen y
+    /// recortan a la mitad la espera que ve el usuario.
+    ///
+    /// Bajarlo más no compensa: por debajo de ~1,5 s se decidiría antes de que
+    /// CG haya registrado el monitor siquiera. Y si aun así se decidiera en
+    /// mitad de un parpadeo, la red es la POSTCONDICIÓN de `turnOffBuiltInSync`
+    /// —que sondea 2 s buscando externo utilizable y revierte— así que el coste
+    /// de equivocarse es un apagado que se deshace, nunca una pantalla perdida.
+    private static let estabilidadSegundos: TimeInterval = 2
+
     /// Cada cuánto reevalúa el watchdog aunque no haya callback.
     /// El caso peligroso (externo dormido, KVM conmutado, entrada del monitor
     /// cambiada) NO genera callback de reconfiguración: sólo lo pilla el timer.
@@ -111,7 +129,11 @@ final class DisplayControl {
         }
     }
 
-    // MARK: - Apagar y encender (única puerta de apagado: menú y restauración P1-R)
+    // MARK: - Apagar y encender
+    //
+    // Única puerta de apagado: el menú, la restauración P1-R y el apagado al
+    // conectar P1-C. Las dos automáticas entran por la MISMA transacción
+    // (precondición + P5 + dead-man + postcondición) que el clic del usuario.
 
     func turnOffBuiltIn(completion: @escaping (Result<Void, PantallaError>) -> Void) {
         workQueue.async {
@@ -169,7 +191,7 @@ final class DisplayControl {
         }
         if !externalBack {
             writeProblem("post-condición fallida: sin externo utilizable tras 2 s, revirtiendo")
-            let reverted = turnOnAllSync()
+            let reverted = turnOnAllSync(rearm: false)
             // El dead-man sólo se desarma si la reversión funcionó; si falló,
             // que dispare: es la última red que queda.
             if reverted { _ = disarmDeadman() }
@@ -204,12 +226,24 @@ final class DisplayControl {
 
     func turnOnAll(completion: ((Bool) -> Void)? = nil) {
         // La vía del MENÚ («Encender» y «Forzar reactivación»): un encendido
-        // explícito cancela también cualquier intención de restauración
-        // pendiente — el usuario acaba de cambiar de opinión. Las vías
-        // automáticas (watchdog, vigía, fast-path) usan turnOnAllSync o la
-        // emergencia y NO cancelan: sólo actúan con algo apagado, estado
-        // incompatible con una ventana armada.
+        // explícito cancela también cualquier intención de restauración y
+        // cualquier ventana de apagado diferido (P1-R o P1-C) pendiente — el
+        // usuario acaba de cambiar de opinión. Las vías automáticas (watchdog,
+        // vigía, fast-path) usan turnOnAllSync o la emergencia y NO cancelan:
+        // sólo actúan con algo apagado, estado incompatible con una ventana
+        // armada.
         cancelRestoreIntent(reason: "encender explícito del menú")
+        // Y APAGA la regla de P1-C. Encender a mano contradice «apágala al
+        // conectar una externa»: si el usuario quiere ver la interna teniendo
+        // el monitor puesto, la regla ya no describe lo que quiere, y
+        // mantenerla armada convertiría su clic en una pelea contra la app a
+        // cada reconexión. Es también lo que hace desaparecer su fila del
+        // menú, que sólo existe con la interna apagada.
+        if Self.autoOffOnConnect {
+            Self.autoOffOnConnect = false
+            write("apagar al conectar una externa: desactivado (encender explícito del menú)")
+            notifyChange()
+        }
         workQueue.async {
             let ok = self.turnOnAllSync()
             DispatchQueue.main.async { completion?(ok) }
@@ -218,9 +252,11 @@ final class DisplayControl {
 
     /// Variante bloqueante, para `applicationWillTerminate`: allí no hay
     /// ocasión de esperar a una cola de fondo, el proceso se va a morir.
+    /// Sus tres usos —dormir, apagar el Mac y salir— son encendidos
+    /// preventivos, no el momento de re-aplicar la regla de P1-C.
     @discardableResult
     func turnOnAllBlocking() -> Bool {
-        return workQueue.sync { self.turnOnAllSync() }
+        return workQueue.sync { self.turnOnAllSync(rearm: false) }
     }
 
     /// Cuando el rescate resulta imposible (cero pantallas), se deja de
@@ -229,8 +265,15 @@ final class DisplayControl {
     /// 18 minutos, cada uno bloqueando ~21 s.
     private var isStranded = false
 
+    /// `rearm`: si este encendido debe hacer que P1-C vuelva a evaluarse. Lo
+    /// quieren sólo las redes de seguridad (watchdog): un encendido automático
+    /// no deroga la regla del usuario. Lo tienen PROHIBIDO la reversión de una
+    /// postcondición fallida —re-armar ahí reintentaría en bucle un apagado
+    /// que acaba de fallar— y los encendidos preventivos de dormir, apagar y
+    /// salir, que no son el momento de aplicar reglas.
     @discardableResult
-    private func turnOnAllSync() -> Bool {
+    private func turnOnAllSync(rearm: Bool = true) -> Bool {
+        let builtinWasOff = pc_state_builtin_disabled()
         let r = pc_rescue()
         write("rescate: indicios=\(r.had_evidence) activos \(r.active_before) -> \(r.active_after), "
               + "IDs \(r.targeted_ok)/\(r.targeted_attempts), "
@@ -247,6 +290,12 @@ final class DisplayControl {
             isStranded = false
         }
         notifyChange()
+        // Sólo si esto ha devuelto LA INTERNA. `targeted_ok` no sirve: también
+        // cuenta externos recuperados y entradas rancias podadas, así que
+        // dispararía re-armados que la interna nunca pidió.
+        if rearm, builtinWasOff, !pc_state_builtin_disabled() {
+            scheduleAutoOffRearm(reason: "rescate")
+        }
         return r.ok
     }
 
@@ -280,18 +329,27 @@ final class DisplayControl {
                 self?.evaluateSafety(trigger: "screenParameters")
         }
 
-        // Despertar: comprobar y, si hace falta, ENCENDER. El único re-apagado
-        // posible es la restauración P1-R (desactivable), que NO corre aquí: abre una
-        // ventana y exige el mismo externo utilizable ≥5 s sin
-        // reconfiguraciones antes de re-aplicar por la transacción completa
-        // del menú — ésa es la respuesta a la carrera de re-enumeración (tarda
-        // segundos, más con un dock) que hacía peligroso un re-aplicador
-        // ingenuo tras el wake.
+        // Despertar: comprobar y, si hace falta, ENCENDER. Los únicos
+        // re-apagados posibles son las dos excepciones acotadas (P1-R y P1-C),
+        // y ninguna corre aquí: abren una ventana y exigen el mismo externo
+        // utilizable estable sin reconfiguraciones antes de re-aplicar por la
+        // transacción completa del menú — ésa es la respuesta a la carrera de
+        // re-enumeración (tarda segundos, más con un dock) que hacía peligroso
+        // un re-aplicador ingenuo tras el wake.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil, queue: .main) { [weak self] _ in
                 self?.write("wake: comprobando seguridad")
-                self?.workQueue.async { self?.openRestoreWindow(trigger: "despertar") }
+                // El despertar lo decide la restauración, que sabe si el
+                // usuario tenía la interna apagada. P1-C se calla un minuto:
+                // si el sistema re-crease los proxies de vídeo al despertar,
+                // ese match no es una conexión nueva y no debe pisar un
+                // «Encender» anterior al reposo. Coste: enchufar un monitor
+                // en ese primer minuto se resuelve con un clic (fail-open).
+                self?.suppressAutoOff(seconds: 60, reason: "despertar")
+                self?.workQueue.async {
+                    self?.openOffWindow(kind: .restore, trigger: "despertar")
+                }
                 self?.evaluateSafety(trigger: "wake")
         }
 
@@ -312,6 +370,14 @@ final class DisplayControl {
                 // real, y un apagado CANCELADO por el usuario no puede dejar
                 // una intención rancia armada (hallazgo de la auditoría).
                 Self.restoreIntent = Self.restoreOffEnabled && wasOff
+                // P1-C se calla y cierra su ventana ANTES de dormir, no al
+                // despertar: aquí el silencio ya está puesto cuando llegue el
+                // match, mientras que armarlo sólo en didWake pierde la
+                // carrera (el despertar entra por el hilo principal y el match
+                // por ioQueue). Además impide que una ventana viva decida
+                // mientras el sistema se duerme — justo cuando el encendido
+                // preventivo de abajo bloquea el hilo principal.
+                self.suppressAutoOff(seconds: 90, reason: "dormir")
                 guard wasOff else { return }
                 self.write("willSleep: encendiendo la interna por precaución")
                 self.turnOnAllBlocking()
@@ -332,6 +398,9 @@ final class DisplayControl {
                 }
                 let wasOff = !self.disabledByUs().isEmpty
                 Self.restoreIntent = Self.restoreOffEnabled && wasOff
+                // Mismo motivo que en willSleep: nada de apagar mientras el
+                // Mac se apaga, y menos aún después del encendido preventivo.
+                self.suppressAutoOff(seconds: 90, reason: "apagar el Mac")
                 guard wasOff else { return }
                 self.write("willPowerOff: encendiendo la interna")
                 self.turnOnAllBlocking()
@@ -371,7 +440,7 @@ final class DisplayControl {
 
         startIOKitWatcher()
 
-        write("watchdog iniciado (callback + screenParameters + wake + timer \(watchdogInterval)s + IOKit)")
+        write("watchdog iniciado (callback + screenParameters + wake + timer \(watchdogInterval)s + IOKit (terminación y conexión))")
     }
 
     // MARK: - Vigía IOKit (capa 5d)
@@ -385,9 +454,22 @@ final class DisplayControl {
     // mientras WindowServer aún crea que tiene una pantalla viva, el enable de
     // la interna puede completarse (con 0 pantallas "reales" ya no — el
     // hotplug falla, también medido).
+    //
+    // El MISMO puerto recibe también el nacimiento de esos proxies
+    // (kIOFirstMatchNotification), y ése es el disparador de P1-C: es el único
+    // canal que distingue «hay un monitor físico conectado» de «CG enumera
+    // algo». Un zombi re-registrado parece una conexión nueva para CG (el
+    // re-registro 2→23 de los desenchufes reales; medido otra vez el
+    // 2026-08-21, 4→14 y 4→17) y apagar la interna ahí dejaría cero pantallas
+    // reales. Este
+    // canal no puede confundirse: sin cable no hay proxy. Ojo, la simetría no
+    // es perfecta — el proxy tarda ~10 s en morir tras el desenchufe (medido
+    // 2026-08-21), así que «el proxy está» no prueba «el monitor está ahora»:
+    // quien decide sigue siendo el predicado de seguridad sobre CG.
 
     private var ioNotifyPort: IONotificationPortRef?
     private var ioTerminatedIter: io_iterator_t = 0
+    private var ioMatchedIter: io_iterator_t = 0
     private let ioQueue = DispatchQueue(label: "com.joanplanas.pantallaoff.iokit",
                                         qos: .userInteractive)
 
@@ -418,7 +500,37 @@ final class DisplayControl {
         // Armar la notificación: hay que drenar el iterador inicial.
         var svc = IOIteratorNext(ioTerminatedIter)
         while svc != 0 { IOObjectRelease(svc); svc = IOIteratorNext(ioTerminatedIter) }
-        write("vigía IOKit iniciado (terminación de DCPAVServiceProxy)")
+
+        // Segunda notificación en el MISMO puerto: el nacimiento de un proxy,
+        // disparador de P1-C. Si falla, no se destruye el puerto — la
+        // terminación ya está armada y es la red de seguridad; lo único que se
+        // pierde es el apagado automático al conectar (fail-open).
+        let krMatch = IOServiceAddMatchingNotification(
+            port, kIOFirstMatchNotification,
+            IOServiceMatching("DCPAVServiceProxy"),
+            { refcon, iterator in
+                guard let refcon else { return }
+                Unmanaged<DisplayControl>.fromOpaque(refcon).takeUnretainedValue()
+                    .ioProxyMatched(iterator: iterator, trigger: "conexión física")
+            },
+            refcon, &ioMatchedIter)
+        if krMatch == KERN_SUCCESS {
+            // Drenaje inicial: SÓLO arma la notificación. Los proxies que ya
+            // estaban al arrancar no se procesan aquí — de eso se encarga
+            // autoOffArmNow desde AppDelegate, DESPUÉS de reconciliar el
+            // estado (una entrada rancia daría un falso ALREADY_OFF).
+            var m = IOIteratorNext(ioMatchedIter)
+            while m != 0 { IOObjectRelease(m); m = IOIteratorNext(ioMatchedIter) }
+        }
+        // La línea de arranque se emite SIEMPRE: si el match falla, lo que
+        // importa saber es que la terminación —la red de seguridad de verdad—
+        // sí quedó armada.
+        write("vigía IOKit iniciado (terminación de DCPAVServiceProxy"
+              + (krMatch == KERN_SUCCESS ? " + conexión)" : "; SIN conexión)"))
+        if krMatch != KERN_SUCCESS {
+            writeProblem("vigía IOKit: AddMatchingNotification (conexión) falló (\(krMatch)); "
+                         + "el apagado al conectar no funcionará en esta sesión")
+        }
     }
 
     /// Registry IDs de proxies ya terminados. ACUMULATIVO a propósito: los
@@ -486,6 +598,122 @@ final class DisplayControl {
         // Ventana zombi: actuar YA, en este mismo hilo.
         emergencyEnableBuiltin(reason: "iokit: desenchufe físico, enable en ventana zombi",
                                alreadyLocked: false)
+    }
+
+    /// Nacimiento de un proxy de vídeo: el disparador de P1-C. En ioQueue, sin
+    /// estado propio — sólo lee el registro IOKit y despacha a workQueue, que
+    /// es donde vive la ventana. Nada de CoreGraphics aquí: una llamada
+    /// bloqueada retrasaría la siguiente terminación física, que sí es urgente.
+    private func ioProxyMatched(iterator: io_iterator_t, trigger: String) {
+        var externalAppeared = false
+        var svc = IOIteratorNext(iterator)
+        while svc != 0 {
+            // Sólo cuenta una Location leída POSITIVAMENTE como "External". Al
+            // revés que en ioProxyTerminated, donde lo ilegible se trata como
+            // External porque perder la ventana zombi es lo inseguro: aquí la
+            // dirección insegura sería APAGAR, así que lo ilegible NO dispara.
+            // El Embedded (la interna al re-encenderse) se ignora siempre.
+            var eid: UInt64 = 0
+            _ = IORegistryEntryGetRegistryEntryID(svc, &eid)
+            if let cf = IORegistryEntryCreateCFProperty(svc, "Location" as CFString,
+                                                        kCFAllocatorDefault, 0),
+               let loc = cf.takeRetainedValue() as? String, loc == "External" {
+                externalAppeared = true
+                write("iokit: conexión externa (\(trigger)); proxy 0x\(String(eid, radix: 16))")
+                // Una conexión física de verdad limpia la racha del
+                // anti-oscilación: lo que se estaba vigilando era la interna
+                // volviendo sola, no un cable nuevo.
+                workQueue.async { self.autoOffRearmStreak = 0 }
+            }
+            IOObjectRelease(svc)
+            svc = IOIteratorNext(iterator)
+        }
+        guard externalAppeared else { return }
+        // Sólo tiene sentido con pantalla interna que apagar. El interruptor
+        // ni siquiera se dibuja en sobremesa, así que sin este guard la
+        // preferencia (migrada de otro perfil, o escrita a mano) armaría
+        // ventanas que nadie puede parar desde el menú.
+        guard pc_is_laptop() else { return }
+        // El silencio se consulta AQUÍ, en el disparo automático de IOKit, que
+        // es el único que puede confundir un baile de proxies con una
+        // conexión. La otra vía que abre ventanas de P1-C (`autoOffArmNow`, al
+        // arrancar la app) no lo comprueba porque no puede estar bajo
+        // silencio: se llama una sola vez, antes de que ningún dormir,
+        // despertar ni encendido haya podido armarlo. Y aun así,
+        // `checkOffWindow` lo re-comprueba al decidir.
+        workQueue.async {
+            guard Date() >= self.autoOffSuppressedUntil else {
+                self.write("apagado al conectar: conexión dentro del silencio (\(trigger)); no se abre ventana")
+                return
+            }
+            self.openOffWindow(kind: .autoOff, trigger: trigger)
+        }
+    }
+
+    /// Re-arma P1-C después de que una RED DE SEGURIDAD haya encendido la
+    /// interna (acelerador, vigía o watchdog). Sin esto, la regla se queda
+    /// muerta hasta la próxima conexión física: medido el 2026-08-21, el
+    /// externo se re-registró en CoreGraphics (4→25) sin tocar el cable, el
+    /// acelerador encendió la interna —correctamente, creía que se perdía la
+    /// salida— y P1-C no volvió a aplicarse nunca, con el monitor delante y la
+    /// opción marcada. Un encendido automático no es una decisión del usuario:
+    /// su regla sigue en pie.
+    ///
+    /// Contra el zombi hay CUATRO capas, y conviene saber en qué orden
+    /// protegen, porque relajar las primeras fiándose de la última sería un
+    /// error: (1) la ventana sólo decide con la interna ENCENDIDA — si consta
+    /// apagada cierra por `ALREADY_OFF` sin tocar nada, y es lo que
+    /// estructuralmente mata el caso; (2) el predicado de seguridad sobre CG;
+    /// (3) la presencia física en IOKit al decidir; y sólo entonces (4) estos
+    /// 12 s de espera, la capa más débil, que existe porque el proxy External
+    /// tarda ~10-13 s en morir tras un desenchufe (medido 2026-08-21): antes
+    /// de ese plazo «queda un proxy vivo» no distingue el cable puesto del
+    /// cable recién quitado. 12 s y no 20: la decisión de la ventana llega en
+    /// realidad a los 12 s + la estabilidad exigida, holgadamente por
+    /// encima de la muerte del proxy, así que el margen sobra y la espera no
+    /// tiene por qué castigar tanto al caso normal. Menos de esto sí es
+    /// inseguro: el proxy podría seguir vivo al decidir y apagaríamos sobre un
+    /// zombi. NO acortar sin volver a medir la latencia de terminación.
+    ///
+    /// Anti-oscilación: si la interna vuelve sola poco después de que P1-C la
+    /// apagara, algo la está reencendiendo —el acelerador dispara solo con
+    /// bastante frecuencia, medido: 19 veces en 6 h 47 min con el cable
+    /// quieto— y volver a aplicar la regla sería un bucle de apagados. A la
+    /// segunda vez seguida se deja de re-armar y se registra como anomalía:
+    /// la interna se queda encendida, que es la dirección segura.
+    private func scheduleAutoOffRearm(reason: String) {
+        guard Self.autoOffOnConnect, pc_is_laptop() else { return }
+        workQueue.asyncAfter(deadline: .now() + 12) {
+            guard Self.autoOffOnConnect else { return }
+            if Date().timeIntervalSince(self.lastAutoOffAppliedAt) < 300 {
+                self.autoOffRearmStreak += 1
+                if self.autoOffRearmStreak >= 2 {
+                    self.writeProblem("re-armado descartado: la interna vuelve sola tras aplicar el "
+                                      + "apagado al conectar (racha \(self.autoOffRearmStreak)); "
+                                      + "se deja encendida para no oscilar")
+                    return
+                }
+            } else {
+                self.autoOffRearmStreak = 0
+            }
+            self.autoOffArmNow(trigger: "reencendido automático: \(reason)")
+        }
+    }
+
+    /// Evalúa la regla de P1-C con lo que YA está conectado: al arrancar la
+    /// app —es lo que hace que la preferencia siga valiendo tras reiniciar el
+    /// Mac, donde el fichero de estado se descarta y todo vuelve encendido— y
+    /// al re-armar tras un encendido automático.
+    /// Corre en ioQueue porque `deadProxyIDs` está confinado ahí.
+    func autoOffArmNow(trigger: String) {
+        guard Self.autoOffOnConnect, pc_is_laptop() else { return }
+        ioQueue.async {
+            guard self.externalProxyCount(excluding: self.deadProxyIDs) > 0 else {
+                self.write("apagado al conectar: sin conexión externa física ahora (\(trigger))")
+                return
+            }
+            self.workQueue.async { self.openOffWindow(kind: .autoOff, trigger: trigger) }
+        }
     }
 
     private func externalProxyCount(excluding dead: Set<UInt64>) -> Int {
@@ -604,6 +832,11 @@ final class DisplayControl {
                    online.prefix(Int(no)).contains(e.id) {
                     pc_state_remove(e.id)
                     notifyChange()
+                    // La red de seguridad ha encendido la interna, pero eso no
+                    // deroga la regla del usuario: si el monitor sigue ahí de
+                    // verdad, hay que volver a aplicarla. (El bucle sólo
+                    // recorre entradas `was_builtin`.)
+                    scheduleAutoOffRearm(reason: reason)
                 } else {
                     pc_log_str("enable aceptado pero \(e.id) no está online; se conserva el ancla")
                 }
@@ -611,13 +844,24 @@ final class DisplayControl {
         }
     }
 
-    // MARK: - Restauración del apagado (P1-R)
+    // MARK: - Ventana de apagado diferido (P1-R y P1-C)
     //
-    // Excepción acotada de P1 (ver CLAUDE.md): re-aplicar tras despertar o
-    // arrancar una decisión explícita PREVIA del usuario, por la MISMA
-    // transacción del menú (precondición + P5 + dead-man + postcondición).
-    // Activada por defecto (decisión de Joan tras la verificación en
-    // hardware); se desactiva desde ⌥ → Diagnóstico.
+    // Las DOS excepciones acotadas de P1 (ver CLAUDE.md) comparten mecanismo:
+    // ninguna apaga nada al vuelo. Abren una ventana de 60 s y sólo actúan
+    // cuando el MISMO externo utilizable lleva `estabilidadSegundos` siéndolo y otro tanto sin
+    // reconfiguraciones, y siempre por la MISMA transacción del menú
+    // (precondición + P5 + dead-man + postcondición). Un solo intento.
+    //
+    //   P1-R  restauración: re-aplica una decisión explícita PREVIA del
+    //         usuario tras despertar o arrancar. Activada por defecto
+    //         (decisión de Joan tras la verificación en hardware); se desactiva
+    //         desde ⌥ → Diagnóstico.
+    //   P1-C  apagado al conectar: aplica una regla que el usuario dejó
+    //         activada, al conectar un monitor físico. Desactivada por defecto.
+    //         La dispara SÓLO el nacimiento de un DCPAVServiceProxy External
+    //         (IOKit) — nunca lo que enumere CoreGraphics, donde un zombi
+    //         parece un monitor nuevo y apagar la interna dejaría cero
+    //         pantallas reales, estado del que no se sale por software.
 
     static var restoreOffEnabled: Bool {
         get {
@@ -625,6 +869,16 @@ final class DisplayControl {
             UserDefaults.standard.object(forKey: "restoreOffEnabled") as? Bool ?? true
         }
         set { UserDefaults.standard.set(newValue, forKey: "restoreOffEnabled") }
+    }
+
+    /// Preferencia de P1-C: «al conectar una pantalla externa, apaga la
+    /// interna». Por defecto DESACTIVADA (bool(forKey:) devuelve false), igual
+    /// que «Dormir al cerrar la tapa». Persiste en UserDefaults, así que
+    /// sobrevive al reinicio; para que actúe tras uno, la app tiene que estar
+    /// en marcha (de ahí «Abrir al iniciar sesión»).
+    static var autoOffOnConnect: Bool {
+        get { UserDefaults.standard.bool(forKey: "autoOffOnConnect") }
+        set { UserDefaults.standard.set(newValue, forKey: "autoOffOnConnect") }
     }
 
     /// Intención persistida: «la interna estaba apagada por el usuario cuando
@@ -636,36 +890,130 @@ final class DisplayControl {
         set { UserDefaults.standard.set(newValue, forKey: "restoreIntent") }
     }
 
-    /// Estado de la ventana de restauración. CONFINADO a workQueue.
-    private var restoreWindowUntil: Date?
-    private var restoreStableID: CGDirectDisplayID = 0
-    private var restoreStableSince: Date?
+    private enum OffWindowKind {
+        case restore, autoOff
+        var label: String { self == .restore ? "restauración" : "apagado al conectar" }
+    }
+
+    /// Ventana de apagado diferido. UN SOLO valor para «hay ventana»: con dos
+    /// variables, un cierre que olvidara una dejaría la ventana abierta para
+    /// siempre y ni P1-R ni P1-C volverían a armarse hasta relanzar la app.
+    private struct OffWindow {
+        var kind: OffWindowKind
+        var until: Date
+        var stableID: CGDirectDisplayID = 0
+        var stableSince: Date?
+    }
+
+    /// CONFINADA a workQueue. nil = sin ventana.
+    private var offWindow: OffWindow?
+    /// Cuándo aplicó P1-C su último apagado, y cuántos re-armados seguidos han
+    /// acabado con la interna encendida otra vez. Los usa el anti-oscilación
+    /// de `scheduleAutoOffRearm`. CONFINADOS a workQueue.
+    private var lastAutoOffAppliedAt = Date.distantPast
+    private var autoOffRearmStreak = 0
+    /// Hay un sondeo de la ventana ya encolado. CONFINADO a workQueue.
+    private var offWindowPollScheduled = false
     /// Última reconfiguración vista (cualquier trigger que no sea "timer").
     /// Sólo se escribe en evaluateSafetySync: workQueue, sin carreras.
     private var lastReconfigAt = Date.distantPast
+    /// Hasta cuándo P1-C se calla. Sólo suprime apagados, nunca los provoca:
+    /// cubre el dormir y el apagar del Mac (90 s) y el despertar (60 s), donde
+    /// un posible baile de proxies no significa «acabas de conectar un
+    /// monitor». El encendido explícito del menú no necesita silencio: apaga
+    /// la regla entera. CONFINADA a workQueue.
+    private var autoOffSuppressedUntil = Date.distantPast
     /// true desde willPowerOff hasta la muerte del proceso (o su reset si el
     /// apagado se cancela). Sólo se toca en el hilo principal.
     private var poweringOff = false
 
+    /// Silencia el disparo AUTOMÁTICO de P1-C durante unos segundos, y cierra
+    /// la ventana automática que hubiera abierta: si el match ganó la carrera
+    /// al motivo del silencio (el despertar llega por el hilo principal, el
+    /// match por ioQueue), silenciar sin cerrar no serviría de nada. Cerrar es
+    /// siempre seguro: suprimir nunca puede provocar un apagado.
+    /// Llamable desde cualquier hilo.
+    private func suppressAutoOff(seconds: TimeInterval, reason: String) {
+        workQueue.async {
+            let until = Date().addingTimeInterval(seconds)
+            if until > self.autoOffSuppressedUntil {
+                self.autoOffSuppressedUntil = until
+                self.write("apagado al conectar: en silencio \(Int(seconds)) s (\(reason))")
+            }
+            if let w = self.offWindow, w.kind == .autoOff {
+                self.offWindow = nil
+                self.write("apagado al conectar: ventana cerrada (\(reason))")
+            }
+        }
+    }
+
     /// En workQueue.
-    private func openRestoreWindow(trigger: String) {
-        guard Self.restoreOffEnabled, Self.restoreIntent else { return }
-        restoreWindowUntil = Date().addingTimeInterval(60)
-        restoreStableID = 0
-        restoreStableSince = nil
-        write("restauración: ventana abierta (\(trigger)); esperando externo utilizable estable")
+    private func openOffWindow(kind: OffWindowKind, trigger: String) {
+        switch kind {
+        case .restore: guard Self.restoreOffEnabled, Self.restoreIntent else { return }
+        case .autoOff: guard Self.autoOffOnConnect else { return }
+        }
+        if var w = offWindow {
+            // Ya hay ventana. La restauración manda: su cierre liquida además
+            // la intención. Renueva los 60 s completos y REINICIA la
+            // continuidad por ID, igual que cuando era la única — entre una
+            // apertura y otra puede haber pasado un ciclo de sueño, y un ID
+            // reusado por otro monitor no debe heredar la antigüedad del
+            // anterior. Cuesta 5 s de espera y es la dirección segura.
+            guard kind == .restore else {
+                write("apagado al conectar: ya había una ventana abierta; se mantiene (\(trigger))")
+                return
+            }
+            let relevo = w.kind != .restore
+            w.kind = .restore
+            w.until = Date().addingTimeInterval(60)
+            w.stableID = 0
+            w.stableSince = nil
+            offWindow = w
+            write(relevo
+                  ? "restauración: releva a la ventana abierta (\(trigger)); plazo renovado"
+                  : "restauración: ventana ya abierta (\(trigger)); plazo renovado")
+            return
+        }
+        offWindow = OffWindow(kind: kind, until: Date().addingTimeInterval(60))
+        write("\(kind.label): ventana abierta (\(trigger)); esperando externo utilizable estable")
+        scheduleOffWindowPoll()
+    }
+
+    /// Mientras hay ventana abierta se evalúa cada segundo, en vez de esperar
+    /// al tick de 3 s del watchdog. NO relaja ninguna condición —los plazos de
+    /// estabilidad son de reloj de pared y se comprueban igual—, sólo evita
+    /// que la decisión se quede esperando a un tick que ya no aporta nada.
+    /// Se encadena solo y se detiene en cuanto la ventana se cierra.
+    private func scheduleOffWindowPoll() {
+        guard !offWindowPollScheduled else { return }
+        offWindowPollScheduled = true
+        workQueue.asyncAfter(deadline: .now() + 1) {
+            self.offWindowPollScheduled = false
+            guard self.offWindow != nil else { return }
+            self.checkOffWindow()
+            if self.offWindow != nil { self.scheduleOffWindowPoll() }
+        }
     }
 
     /// Para el arranque de la app (login item tras un reinicio del Mac).
-    func openRestoreWindowAtLaunch() {
-        workQueue.async { self.openRestoreWindow(trigger: "arranque") }
+    func openOffWindowAtLaunch() {
+        workQueue.async { self.openOffWindow(kind: .restore, trigger: "arranque") }
     }
 
-    /// Cancela intención y ventana (Encender del menú, interruptor a off).
+    /// Cancela la intención de restauración y CUALQUIER ventana de apagado
+    /// diferido (Encender del menú, Forzar reactivación, interruptor de P1-R a
+    /// off). Un encendido explícito cancelando un apagado pendiente es la
+    /// dirección fail-open.
     func cancelRestoreIntent(reason: String) {
         if Self.restoreIntent { write("restauración: intención cancelada (\(reason))") }
         Self.restoreIntent = false
-        workQueue.async { self.restoreWindowUntil = nil }
+        workQueue.async {
+            if let w = self.offWindow {
+                self.write("\(w.kind.label): ventana cerrada (\(reason))")
+            }
+            self.offWindow = nil
+        }
     }
 
     /// Al terminar la app: quitar la app es dejar de gestionar — salvo que la
@@ -678,16 +1026,31 @@ final class DisplayControl {
     /// En workQueue, al PRINCIPIO de evaluateSafetySync: la ventana vive en el
     /// estado «todo encendido», donde el resto de la función hace return
     /// temprano — por eso el enganche va antes de ese guard.
-    private func checkRestoreWindow() {
-        guard let until = restoreWindowUntil else { return }
-        // La ventana sólo vive mientras la intención y el interruptor sigan
-        // vivos (hallazgo de la verificación): un dormir intermedio con todo
-        // encendido recalcula la intención a false pero no cerraba la ventana
-        // — y una cancelación desde otro hilo puede cruzarse con un tick ya
-        // encolado. Re-comprobar aquí, en el mismo tick que decide, cierra
-        // las dos vías.
-        guard Self.restoreOffEnabled, Self.restoreIntent else {
-            restoreWindowUntil = nil
+    private func checkOffWindow() {
+        guard var w = offWindow else { return }
+        // La ventana sólo vive mientras siga procediendo su motivo (hallazgo
+        // de la verificación): un dormir intermedio con todo encendido
+        // recalcula la intención a false pero no cerraba la ventana — y una
+        // cancelación desde otro hilo puede cruzarse con un tick ya encolado.
+        // Re-comprobar aquí, en el mismo tick que decide, cierra las dos vías;
+        // para P1-C es además lo que hace que desmarcar la sub-opción (o
+        // pulsar «Encender pantalla», que la desmarca) cierre su ventana sin
+        // necesidad de una cancelación explícita.
+        let stillApplies: Bool
+        switch w.kind {
+        case .restore:
+            stillApplies = Self.restoreOffEnabled && Self.restoreIntent
+        case .autoOff:
+            // El silencio se re-comprueba también AQUÍ, no sólo al abrir: una
+            // ventana abierta justo antes de que se arme el silencio (o antes
+            // de un reposo, cuyo reloj la prorroga) no debe decidir después.
+            // Cerrarla es la dirección fail-open, y sólo retrasa el apagado
+            // hasta la siguiente conexión.
+            stillApplies = Self.autoOffOnConnect && Date() >= autoOffSuppressedUntil
+        }
+        guard stillApplies else {
+            offWindow = nil
+            write("\(w.kind.label): ventana cerrada (ya no procede)")
             return
         }
         // Dark wake / pantallas dormidas por el sistema: el reloj no corre —
@@ -695,61 +1058,99 @@ final class DisplayControl {
         // abierta por un despertar de mantenimiento no debe consumir la
         // intención a ciegas).
         if systemScreensAsleep {
-            restoreWindowUntil = until.addingTimeInterval(watchdogInterval)
+            w.until = w.until.addingTimeInterval(watchdogInterval)
+            offWindow = w
             return
         }
-        if Date() >= until {
-            restoreWindowUntil = nil
-            if Self.restoreIntent {
+        if Date() >= w.until {
+            offWindow = nil
+            if w.kind == .restore, Self.restoreIntent {
                 Self.restoreIntent = false
                 write("restauración: ventana expirada sin condición estable; intención olvidada")
+            } else {
+                write("\(w.kind.label): ventana expirada sin condición estable")
             }
             return
         }
         let why = pc_can_disable_builtin_why()
         if why == PC_DENY_ALREADY_OFF {
-            // El usuario (u otra vía explícita) ya la apagó: deseo cumplido,
-            // cierre satisfecho — no es una expiración ni un fallo.
-            restoreWindowUntil = nil
-            Self.restoreIntent = false
-            write("restauración: la interna ya está apagada; ventana cerrada satisfecha")
+            // La interna ya está apagada (el usuario se adelantó, o ya lo
+            // estaba): deseo cumplido, cierre satisfecho — no es una
+            // expiración ni un fallo.
+            offWindow = nil
+            if w.kind == .restore { Self.restoreIntent = false }
+            write("\(w.kind.label): la interna ya está apagada; ventana cerrada satisfecha")
             return
         }
         guard why == PC_DENY_OK else {
-            restoreStableID = 0
-            restoreStableSince = nil
+            w.stableID = 0
+            w.stableSince = nil
+            offWindow = w
             return
         }
-        // Continuidad por ID: el MISMO externo utilizable ≥5 s. El silencio de
-        // eventos solo no basta — el log del 2026-08-06 muestra huecos >5 s en
-        // mitad de bailes de cables aún en curso.
+        // Continuidad por ID: el MISMO externo utilizable durante
+        // `estabilidadSegundos`, y otro tanto sin reconfiguraciones. El
+        // silencio de eventos solo no basta — el log del 2026-08-06 muestra
+        // huecos en mitad de bailes de cables aún en curso.
         let ext = firstUsableExternalID()
         guard ext != 0 else {
-            restoreStableID = 0
-            restoreStableSince = nil
+            w.stableID = 0
+            w.stableSince = nil
+            offWindow = w
             return
         }
         let now = Date()
-        if ext != restoreStableID {
-            restoreStableID = ext
-            restoreStableSince = now
+        if ext != w.stableID {
+            w.stableID = ext
+            w.stableSince = now
+            offWindow = w
             return
         }
-        guard let since = restoreStableSince,
-              now.timeIntervalSince(since) >= 5,
-              now.timeIntervalSince(lastReconfigAt) >= 5 else { return }
+        guard let since = w.stableSince,
+              now.timeIntervalSince(since) >= Self.estabilidadSegundos,
+              now.timeIntervalSince(lastReconfigAt) >= Self.estabilidadSegundos else {
+            offWindow = w
+            return
+        }
+
+        // Red adicional para P1-C: que el monitor siga conectado FÍSICAMENTE
+        // en el instante de decidir. Cubre el caso de un proxy ya terminado;
+        // no es instantánea (el proxy tarda ~10 s en morir, medido
+        // 2026-08-21), así que quien de verdad para un apagado tras un
+        // desenchufe es el predicado de arriba: con la interna encendida no
+        // hay zombi y CG deja de ver el externo. No se aplica a P1-R, que debe
+        // seguir funcionando con pantallas virtuales (que no tienen proxy).
+        // El conjunto de muertos va vacío a propósito: vive en ioQueue, y un
+        // moribundo que aún se enumere sólo puede hacer que NO se apague.
+        if w.kind == .autoOff, externalProxyCount(excluding: []) == 0 {
+            offWindow = nil
+            write("apagado al conectar: sin conexión física al decidir; ventana cerrada")
+            return
+        }
 
         // Decidido: UN solo intento — la ventana se cierra AQUÍ, al decidir,
         // no en el resultado (el tick siguiente ya está encolado detrás).
-        restoreWindowUntil = nil
-        write("restauración: externo \(ext) estable ≥5 s; re-aplicando el apagado del usuario")
+        offWindow = nil
+        let kind = w.kind
+        // El literal de P1-R se conserva palabra por palabra: los README citan
+        // líneas del registro y el log es la fuente de esas citas.
+        write(kind == .restore
+              ? "restauración: externo \(ext) estable; re-aplicando el apagado del usuario"
+              : "apagado al conectar: externo \(ext) estable; apagando la interna")
         switch turnOffBuiltInSync() {
         case .success:
-            Self.restoreIntent = false
-            write("restauración: interna apagada de nuevo (decisión previa del usuario)")
+            if kind == .restore {
+                Self.restoreIntent = false
+                write("restauración: interna apagada de nuevo (decisión previa del usuario)")
+            } else {
+                // Sello para el anti-oscilación: si la interna vuelve sola
+                // dentro de los próximos minutos, no se re-arma a ciegas.
+                lastAutoOffAppliedAt = Date()
+                write("apagado al conectar: interna apagada (regla activada por el usuario)")
+            }
         case .failure(let err):
-            Self.restoreIntent = false
-            writeProblem("restauración: falló (\(err.localizedDescription)); la interna se queda encendida")
+            if kind == .restore { Self.restoreIntent = false }
+            writeProblem("\(kind.label): falló (\(err.localizedDescription)); la interna se queda encendida")
         }
         notifyChange()
     }
@@ -794,12 +1195,13 @@ final class DisplayControl {
 
     private func evaluateSafetySync(trigger: String) {
         // Cualquier trigger de evento (no-timer) cuenta como reconfiguración
-        // para la estabilidad de la restauración. Sólo se escribe aquí.
+        // para la estabilidad de la ventana de apagado diferido. Sólo se
+        // escribe aquí.
         if trigger != "timer" { lastReconfigAt = Date() }
-        // La ventana de restauración (P1-R) vive en el estado «todo
+        // La ventana de apagado diferido (P1-R y P1-C) vive en el estado «todo
         // encendido»: su enganche va ANTES del guard de disabledByUs, que en
         // ese estado hace return temprano.
-        checkRestoreWindow()
+        checkOffWindow()
 
         // Reconciliación continua, SOLO PARA EXTERNOS: una entrada de externo
         // cuyo display está online Y activo describe algo que ya no está

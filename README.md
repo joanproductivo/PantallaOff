@@ -44,6 +44,10 @@ you were running a single display. Windows stop wandering there. One click bring
   handle the rest. It gives you your auto-brightness setting back when you turn it on again.
 - **Sleep when the lid closes** (optional): make closing the lid sleep the Mac even when
   plugged in with an external display (when macOS would keep it awake in clamshell mode).
+- **Always turn it off when an external connects** (optional): once you've turned the display off,
+  this sub-option appears underneath. Tick it and, from then on, plugging a monitor in turns
+  the built-in off by itself a few seconds later, through the same guarded transaction as the
+  click. Physical monitors only — virtual displays (VR headsets, Sidecar) don't trigger it.
 - **Keep your display setup across sleep and reboots** (on by default): if the built-in was
   off when the Mac slept or shut down, it goes off again once a usable external display is
   stable. Can be turned off under ⌥ → Diagnostics.
@@ -113,6 +117,36 @@ usable external display has been stable for a few seconds, within a short window
 the same guarded transaction as the menu click. On by default; turn it off under
 **⌥ → Diagnostics → Keep display setup after wake/startup**.
 
+**Or have it turn off by itself when you plug the monitor in.** Turn the display off first:
+a sub-option appears indented under the menu item, ready to tick.
+
+```
+┌────────────────────────────────────────────────────┐
+│  Turn on MacBook display                           │
+│  ☑   Always turn it off when an external connects  │
+└────────────────────────────────────────────────────┘
+```
+
+From then on, every time you plug a monitor in the built-in goes off by itself a few seconds
+later, through the same guarded transaction as the click: if there's no stable, usable
+external at that moment, nothing happens. The tick is remembered, so it **still applies after
+a reboot** — with *Open at login*, you sign in with the monitor plugged in and the built-in
+turns itself off. Virtual displays (VR headsets, Sidecar) don't trigger it — use the click for
+those.
+
+**And it unticks itself the moment you click "Turn on MacBook display"** (or *Force re-enable
+all displays*, under Diagnostics). That's deliberate:
+turning the screen on by hand while the monitor is plugged in contradicts the rule, and
+leaving it armed would turn your click into a fight with the app every time you reconnected
+the cable. When you want it back, turn the display off and the sub-option is there again.
+
+One warning that applies however you turn the built-in off: **if you unplug the monitor while
+the display is off and it doesn't come back on its own, plug it back in** — or close and
+reopen the lid. With this option ticked you'll be in that state more often, so it's worth
+knowing. And note that plugging it back in is a connection like any other, so the built-in
+will go off again a few seconds later; if what you want is the screen back, click **Turn on
+MacBook display** (which also unticks the option).
+
 ## Using it
 
 Click **Turn off MacBook display**. That's it.
@@ -121,9 +155,9 @@ The item is greyed out with a reason when it wouldn't be safe — no usable exte
 or your built-in is currently the source of a mirror set. To bring the screen back, click
 again, quit the app, or run `~/rescue`.
 
-**Toggles don't close the menu.** Keep awake, sleep-on-lid-close, keyboard backlight, open at
-login and the language switch apply in place — the menu stays open and relabels itself. Actions that
-change your displays still close it, as they should.
+**Toggles don't close the menu.** Also-turn-off-on-connect, keep awake, sleep-on-lid-close,
+keyboard backlight, open at login and the language switch apply in place — the menu stays open
+and relabels itself. Actions that change your displays still close it, as they should.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
 state, the app version, *Open the log*, *Verbose logging*, the *Keep display setup after
@@ -211,10 +245,13 @@ The three observed failure modes are each covered:
 | CG stays silent (pure zombie) | IOKit watcher | ~10 s |
 | You close the lid / sleep the Mac | Pre-emptive re-enable before sleep | before sleeping |
 
-One rule ties it together: **no automatic path may ever turn a display off** — with a single
-scoped exception: the restore feature re-applies *your own* previous click after wake or
-startup, through the same guarded transaction, and only with a stable usable external
-display. The watchdog, the wake handler and every callback can only turn displays *on*.
+One rule ties it together: **no automatic path may ever turn a display off** — with two
+scoped exceptions, both governed by a switch you control and both through the same guarded
+transaction, with a stable usable external display: the restore feature re-applies *your own*
+previous click after wake or startup, and turn-off-on-connect applies *your own* rule when you
+plug a monitor in — and only when IOKit sees a new physical monitor, never based on what
+CoreGraphics enumerates (a just-unplugged monitor still looks real there for a few seconds).
+The watchdog, the wake handler and every callback can only turn displays *on*.
 
 ---
 
@@ -281,7 +318,7 @@ make status   # display state + dead-man status
 ```
 src/PantallaCore.{h,c}    the safety predicate, mutation, state, rescue — one implementation
 src/Bridge.h              exposes the C core to Swift
-src/DisplayControl.swift  watchdog, IOKit watcher, dead-man, restore-after-wake, logging
+src/DisplayControl.swift  watchdog, IOKit watcher, dead-man, deferred off (P1-R/P1-C), logging
 src/LidSleep.swift        sleep when the lid closes (clamshell watcher, public APIs)
 src/KeepAwake.swift       keep awake (IOPMAssertion — public API)
 src/KeyboardLight.swift   keyboard backlight (CoreBrightness, private)
@@ -310,7 +347,10 @@ you can replug by hand. `selftest` refuses to target the built-in unless you pas
   the disconnect API is documented as working from macOS 13 on Apple Silicon — but everything
   in this README was measured on 26.6. On older releases, treat it as untested.
 - **Apple Silicon only.** Nothing here was tried on Intel.
-- **The off state doesn't survive a reboot.** That's deliberate — it's the final safety net.
+- **The state file doesn't survive a reboot.** That's deliberate — it's the final safety net:
+  everything is on at startup. If the built-in goes off again by itself, it's because you left
+  restore or turn-off-on-connect enabled, and both go through the full guarded transaction
+  with a stable, usable external display.
 - **Keep-awake doesn't override closing the lid.** macOS forces sleep regardless of any
   assertion, and here that's a feature: closing the lid is your reliable way back.
 - **Ad-hoc signature.** Fine today. If you ever add a global hotkey you'll need Accessibility

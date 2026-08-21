@@ -30,12 +30,23 @@
   var stage = document.getElementById('stage');
   var toggle = document.getElementById('menu-toggle');
 
+  var autoOff = document.getElementById('menu-autooff');
+
   if (toggle && stage) {
     toggle.addEventListener('click', function () {
       var off = toggle.getAttribute('aria-pressed') === 'true';
       toggle.setAttribute('aria-pressed', off ? 'false' : 'true');
       stage.classList.toggle('is-off', !off);
       toggle.querySelector('.menu-label').textContent = off ? t.menuOff : t.menuOn;
+
+      /* La sub-opción de apagado automático sólo existe con la pantalla ya
+         apagada, igual que en la app: automatiza una decisión que hay que
+         haber tomado antes. Y encender la desmarca, porque encender a mano
+         contradice la regla. */
+      if (autoOff) {
+        autoOff.hidden = off;
+        if (off) autoOff.setAttribute('aria-pressed', 'false');
+      }
     });
   }
 
