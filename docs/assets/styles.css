@@ -630,3 +630,6 @@ code { font-family: var(--mono); font-size: .88em; }
   .card, .callout, .zombie, .note { border-color: #ccc; background: none; }
   a { color: #000; }
 }
+
+/* Sub-opción del menú: cuelga del ítem principal, sangrada como en la app. */
+.menu-item.menu-sub .menu-label { padding-left: 1.15rem; }
