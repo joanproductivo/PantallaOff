@@ -90,6 +90,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // después de la restauración, que manda si ambas concurren.
         control.autoOffArmNow(trigger: "arranque")
         KeyboardLight.reconcile()
+        // «Mantener el Mac despierto» no sobrevive por sí solo a un reinicio:
+        // las assertions de energía mueren con el proceso. Si el usuario lo
+        // dejó pedido y la restauración está activa, se vuelve a pedir.
+        if let restaurado = KeepAwake.restoreIfWanted() {
+            control.write("mantener despierto restaurado al arrancar: \(restaurado)")
+        }
         refresh()
 
         let loginState: String
@@ -113,7 +119,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Las assertions de energía mueren con el proceso, pero soltarlas
         // explícitamente evita dejar una entrada fantasma en `pmset -g assertions`.
-        KeepAwake.set(enabled: false, includeDisplay: false)
+        // `remember: false`: salir no es cambiar de idea, y la preferencia tiene
+        // que sobrevivir para que el próximo arranque la restaure.
+        KeepAwake.set(enabled: false, includeDisplay: false, remember: false)
 
         // La luz del teclado NO muere con el proceso: si la dejáramos apagada,
         // el auto-brillo del sistema quedaría desactivado a espaldas del usuario

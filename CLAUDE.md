@@ -96,7 +96,10 @@ Estado en disco: `~/.pantallaoff-state` (IDs apagados, con `flock` entre proceso
 eso es el fichero de estado), `autoOffOnConnect` (P1-C; sin intención asociada: es una
 regla revocable que sobrevive al reinicio y se reevalúa en cada arranque, pero que un
 «Encender pantalla» explícito desactiva), `sleepOnLidClose`, `verboseLogging`,
-`language`, y las tres de la luz del teclado (`kbOffByUs`, `kbBrightnessBeforeOff`,
+`language`, `keepAwakeWanted` y `keepAwakeWantedDisplay` (lo que el usuario dejó PEDIDO
+en «Mantener el Mac despierto»: las `IOPMAssertion` mueren con el proceso, así que sin
+esto no sobreviviría a un reinicio; sólo las escriben los clics del menú, no la salida
+de la app), y las tres de la luz del teclado (`kbOffByUs`, `kbBrightnessBeforeOff`,
 `kbAutoBeforeOff`: recuerdan tu brillo y tu auto-brillo para devolvértelos al encenderla).
 
 ### Las cinco invariantes
@@ -110,9 +113,11 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
   `estabilidadSegundos` (continuidad por ID; 2 s, medido) y otro tanto sin
   reconfiguraciones, un solo intento, y la transacción completa del menú
   (precondición + P5 + dead-man + postcondición).
-  - **P1-R, restauración** («Mantener configuración de pantalla al despertar/arrancar»,
-    activada por defecto, desactivable en ⌥ → Diagnóstico): re-aplica una decisión
-    explícita previa del usuario tras despertar o arrancar.
+  - **P1-R, restauración** («Mantener mi configuración al despertar/arrancar», activada
+    por defecto, desactivable en ⌥ → Diagnóstico): re-aplica una decisión explícita previa
+    del usuario tras despertar o arrancar. **Gobierna además la persistencia de «Mantener
+    el Mac despierto»**, cuyas assertions mueren con el proceso: de ahí que la cadena diga
+    «mi configuración» y no «configuración de pantalla».
   - **P1-C, apagado al conectar** («…Apagarla siempre al conectar una externa»,
     **desactivada por defecto**): aplica una regla del usuario al conectar un monitor.
     Su fila es una **sub-opción del ítem principal y sólo existe con la interna ya

@@ -49,9 +49,10 @@ devuelve.
   aparece esta sub-opción debajo. Márcala y, a partir de ahí, enchufar el monitor apaga la
   interna sola unos segundos después, por la misma transacción guardada del clic. Sólo con
   monitores físicos: las pantallas virtuales (gafas de VR, Sidecar) no la disparan.
-- **Mantener la configuración al despertar/arrancar** (por defecto): si la interna estaba
+- **Mantener mi configuración al despertar/arrancar** (por defecto): si la interna estaba
   apagada al dormir o apagar el Mac, se vuelve a apagar sola cuando hay un externo
-  utilizable estable. Desactivable en ⌥ → Diagnóstico.
+  utilizable estable. Y hace que *Mantener el Mac despierto* siga activo tras reiniciar.
+  Desactivable en ⌥ → Diagnóstico.
 - **Abrir al iniciar sesión**, si te apetece.
 - **Español e inglés**, conmutables desde el menú y al instante.
 - **Nada más.** Sin temporizadores, sin panel de control. Cada interruptor
@@ -116,7 +117,9 @@ donde la dejan las tres vías.
 dormir o apagar el Mac, PantallaOff la vuelve a apagar tras despertar o arrancar — sólo
 cuando un externo utilizable lleva unos segundos estable, dentro de una ventana corta, y por
 la misma transacción guardada del clic del menú. Activado por defecto; se desactiva en
-**⌥ → Diagnóstico → Mantener configuración de pantalla al despertar/arrancar**.
+**⌥ → Diagnóstico → Mantener mi configuración al despertar/arrancar**. Esa misma opción
+gobierna que **Mantener el Mac despierto** siga activo tras reiniciar: al contrario que los
+demás interruptores, ése no sobrevive por su cuenta (macOS lo suelta al cerrarse la app).
 
 **Y si quieres, que se apague sola al conectar el monitor.** Apaga primero la pantalla: bajo
 el ítem del menú aparecerá una sub-opción, sangrada, que puedes marcar.
@@ -163,7 +166,7 @@ pantallas sí lo cierran, como debe ser.
 
 **Diagnóstico oculto.** Mantén **⌥ Opción** al abrir el menú para ver el estado actual de las
 pantallas, la versión de la app, *Abrir el registro*, *Registro detallado*, el interruptor
-*Mantener configuración de pantalla al despertar/arrancar* y *Forzar reactivación de todas
+*Mantener mi configuración al despertar/arrancar* y *Forzar reactivación de todas
 las pantallas*. Nada de eso hace falta en el uso normal — la app sólo apaga una pantalla, así que
 "reactivar todas" hace lo mismo que el interruptor de siempre. Está ahí para cuando algo va
 mal.

@@ -378,14 +378,20 @@ final class DisplayControl {
                 // real, y un apagado CANCELADO por el usuario no puede dejar
                 // una intención rancia armada (hallazgo de la auditoría).
                 Self.restoreIntent = Self.restoreOffEnabled && wasOff
-                // P1-C se calla y cierra su ventana ANTES de dormir, no al
-                // despertar: aquí el silencio ya está puesto cuando llegue el
-                // match, mientras que armarlo sólo en didWake pierde la
-                // carrera (el despertar entra por el hilo principal y el match
-                // por ioQueue). Además impide que una ventana viva decida
-                // mientras el sistema se duerme — justo cuando el encendido
-                // preventivo de abajo bloquea el hilo principal.
-                self.suppressAutoOff(seconds: 90, reason: "dormir")
+                // Cierra la ventana de P1-C y la silencia mientras el Mac se
+                // duerme. Lo que de verdad importa aquí es el CIERRE: si una
+                // cuenta atrás en curso decidiera justo después del encendido
+                // preventivo de abajo, el Mac dormiría con la interna apagada —
+                // y si el externo se desconecta durante el sueño, al despertar
+                // hay CERO pantallas activas, estado del que no se sale por
+                // software (medido).
+                //
+                // 15 s y no 90: el plazo sólo tiene que cubrir la transición al
+                // sueño, que dura eso. Con 90 seguía vigente mucho después de
+                // haber despertado y se comía conexiones reales — el fallo
+                // reportado el 2026-08-22. El despertar lo levanta igualmente;
+                // esto es la segunda red, no la primera.
+                self.suppressAutoOff(seconds: 15, reason: "dormir")
                 guard wasOff else { return }
                 self.write("willSleep: encendiendo la interna por precaución")
                 self.turnOnAllBlocking()
@@ -408,7 +414,7 @@ final class DisplayControl {
                 Self.restoreIntent = Self.restoreOffEnabled && wasOff
                 // Mismo motivo que en willSleep: nada de apagar mientras el
                 // Mac se apaga, y menos aún después del encendido preventivo.
-                self.suppressAutoOff(seconds: 90, reason: "apagar el Mac")
+                self.suppressAutoOff(seconds: 15, reason: "apagar el Mac")
                 guard wasOff else { return }
                 self.write("willPowerOff: encendiendo la interna")
                 self.turnOnAllBlocking()

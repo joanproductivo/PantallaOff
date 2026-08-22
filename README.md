@@ -48,9 +48,9 @@ you were running a single display. Windows stop wandering there. One click bring
   this sub-option appears underneath. Tick it and, from then on, plugging a monitor in turns
   the built-in off by itself a few seconds later, through the same guarded transaction as the
   click. Physical monitors only — virtual displays (VR headsets, Sidecar) don't trigger it.
-- **Keep your display setup across sleep and reboots** (on by default): if the built-in was
-  off when the Mac slept or shut down, it goes off again once a usable external display is
-  stable. Can be turned off under ⌥ → Diagnostics.
+- **Keep my setup after wake/startup** (on by default): if the built-in was off when the Mac
+  slept or shut down, it goes off again once a usable external display is stable. It also
+  makes *Keep the Mac awake* survive a restart. Can be turned off under ⌥ → Diagnostics.
 - **Start at login**, if you want it.
 - **English and Spanish**, switchable from the menu, applied instantly.
 - **Nothing else.** No timers, no dashboard. Every switch is one click deep.
@@ -115,7 +115,9 @@ routes put it.
 to sleep or shut down, PantallaOff turns it off again after wake or startup — but only once a
 usable external display has been stable for a few seconds, within a short window, and through
 the same guarded transaction as the menu click. On by default; turn it off under
-**⌥ → Diagnostics → Keep display setup after wake/startup**.
+**⌥ → Diagnostics → Keep my setup after wake/startup**. That same option also governs
+whether **Keep the Mac awake** survives a restart: unlike the other switches, that one
+doesn't persist on its own (macOS drops it when the app closes).
 
 **Or have it turn off by itself when you plug the monitor in.** Turn the display off first:
 a sub-option appears indented under the menu item, ready to tick.
@@ -160,8 +162,8 @@ keyboard backlight, open at login and the language switch apply in place — the
 and relabels itself. Actions that change your displays still close it, as they should.
 
 **Hidden diagnostics.** Hold **⌥ Option** while opening the menu to reveal the current display
-state, the app version, *Open the log*, *Verbose logging*, the *Keep display setup after
-wake/startup* toggle and *Force re-enable all displays*. None of it is
+state, the app version, *Open the log*, *Verbose logging*, the *Keep my setup after
+setup after wake/startup* toggle and *Force re-enable all displays*. None of it is
 needed in normal use — the app only ever turns off one screen, so "re-enable all" does the
 same thing as the regular toggle. It's there for when something goes wrong.
 
