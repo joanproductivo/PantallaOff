@@ -340,13 +340,21 @@ final class DisplayControl {
             forName: NSWorkspace.didWakeNotification,
             object: nil, queue: .main) { [weak self] _ in
                 self?.write("wake: comprobando seguridad")
-                // El despertar lo decide la restauración, que sabe si el
-                // usuario tenía la interna apagada. P1-C se calla un minuto:
-                // si el sistema re-crease los proxies de vídeo al despertar,
-                // ese match no es una conexión nueva y no debe pisar un
-                // «Encender» anterior al reposo. Coste: enchufar un monitor
-                // en ese primer minuto se resuelve con un clic (fail-open).
-                self?.suppressAutoOff(seconds: 60, reason: "despertar")
+                // Al despertar, el silencio de P1-C se LEVANTA. Cubría el rato
+                // en que el Mac se duerme, y ese rato ha terminado.
+                //
+                // Antes había además un silencio propio de 60 s aquí, por si el
+                // sistema re-creaba los proxies de vídeo al despertar y ese
+                // match pisaba un «Encender» anterior al reposo. Ese riesgo
+                // desapareció cuando «Encender pantalla» DEL MENÚ pasó a
+                // DESACTIVAR la regla: si el usuario la encendió a mano, no hay
+                // nada que disparar. (Las vías automáticas y `~/rescue` sí
+                // encienden sin tocar la preferencia, y eso es deliberado: una
+                // emergencia no es una decisión del usuario.) Lo que sí hacía era comerse conexiones de verdad —
+                // reportado y medido: cerrar la tapa, abrirla 5 s después y
+                // enchufar el monitor a los 12 s dejaba la interna encendida,
+                // porque los 90 s del dormir seguían corriendo.
+                self?.releaseAutoOffSilence(reason: "despertar")
                 self?.workQueue.async {
                     self?.openOffWindow(kind: .restore, trigger: "despertar")
                 }
@@ -918,14 +926,33 @@ final class DisplayControl {
     /// Sólo se escribe en evaluateSafetySync: workQueue, sin carreras.
     private var lastReconfigAt = Date.distantPast
     /// Hasta cuándo P1-C se calla. Sólo suprime apagados, nunca los provoca:
-    /// cubre el dormir y el apagar del Mac (90 s) y el despertar (60 s), donde
-    /// un posible baile de proxies no significa «acabas de conectar un
-    /// monitor». El encendido explícito del menú no necesita silencio: apaga
-    /// la regla entera. CONFINADA a workQueue.
+    /// cubre el dormir y el apagar del Mac (90 s), donde un posible baile de
+    /// proxies no significa «acabas de conectar un monitor». El DESPERTAR lo
+    /// levanta (`releaseAutoOffSilence`). El encendido explícito del menú no
+    /// necesita silencio: apaga la regla entera. CONFINADA a workQueue.
     private var autoOffSuppressedUntil = Date.distantPast
     /// true desde willPowerOff hasta la muerte del proceso (o su reset si el
     /// apagado se cancela). Sólo se toca en el hilo principal.
     private var poweringOff = false
+
+    /// Levanta el silencio de P1-C. Lo llama el despertar: el silencio de
+    /// dormir cubría el sueño, y el sueño ha terminado.
+    ///
+    /// NO es simétrica de `suppressAutoOff`: aquélla cierra la ventana abierta,
+    /// ésta no abre ninguna. Un match que llegara DENTRO del silencio —enchufar
+    /// el monitor con el Mac dormido, si el proxy nace antes de que el hilo
+    /// principal procese el despertar— se pierde hasta la siguiente conexión.
+    /// Es fail-open y en la configuración por defecto lo tapa P1-R, que abre su
+    /// propia ventana al despertar. Reabrirlo aquí obligaría a disparar P1-C en
+    /// cada despertar con monitor puesto, y eso no se hace sin medir antes si
+    /// los proxies se re-crean al despertar.
+    private func releaseAutoOffSilence(reason: String) {
+        workQueue.async {
+            guard self.autoOffSuppressedUntil > Date() else { return }
+            self.autoOffSuppressedUntil = .distantPast
+            self.write("apagado al conectar: silencio levantado (\(reason))")
+        }
+    }
 
     /// Silencia el disparo AUTOMÁTICO de P1-C durante unos segundos, y cierra
     /// la ventana automática que hubiera abierta: si el match ganó la carrera

@@ -139,10 +139,18 @@ Romper cualquiera de éstas es un fallo grave, no un detalle de estilo:
     fiándote de la cuarta.** Lleva anti-oscilación: si la interna vuelve sola en menos de
     300 s tras un apagado de P1-C, al segundo intento seguido se deja de re-armar y se
     registra como anomalía. Sólo re-arman las redes de seguridad; la reversión de una
-    postcondición fallida y los encendidos preventivos de dormir/apagar/salir, no. **Se calla** —y cierra su ventana— 90 s desde que el Mac se duerme o se apaga,
-    renovados 60 s al despertar: ahí un match de proxies no significa «acabas de conectar
-    un monitor». El silencio se comprueba al abrir la ventana Y al decidir. Un display
-    virtual no la dispara (no tiene proxy).
+    postcondición fallida y los encendidos preventivos de dormir/apagar/salir, no.
+
+    **Se calla** —y cierra su ventana— 90 s desde que el Mac se duerme o se apaga: ahí un
+    match de proxies no significa «acabas de conectar un monitor». Y el **despertar LEVANTA
+    ese silencio**, porque cubría el sueño y el sueño ha terminado. Hubo además un silencio
+    propio de 60 s al despertar; se retiró el 2026-08-22 tras un fallo reportado: cerrar la
+    tapa, abrirla 5 s después y enchufar el monitor a los 12 s dejaba la interna encendida,
+    porque los 90 s del dormir seguían corriendo. Ese silencio existía por si el sistema
+    re-creaba los proxies al despertar y el match pisaba un «Encender» anterior al reposo —
+    riesgo que desapareció cuando «Encender pantalla» pasó a desactivar la regla. **No lo
+    reintroduzcas sin medir antes que el problema existe.** El silencio se comprueba al
+    abrir la ventana Y al decidir. Un display virtual no la dispara (no tiene proxy).
 
   Watchdog, wake, callbacks y el vigía de **terminación** de IOKit sólo pueden
   **encender**; la notificación de **match** del mismo puerto no enciende ni apaga: sólo
@@ -332,6 +340,12 @@ P1-C hace habitual el estado de partida—, pero **no es un bloqueante de public
 - Si un monitor que se apaga por su botón mata su `DCPAVServiceProxy`. Si lo mata,
   encenderlo cuenta como conexión y P1-C vuelve a apagar la interna — coherente con la
   preferencia, pero conviene medirlo antes de documentarlo como comportamiento.
+- **Si los proxies External se re-crean al despertar.** Desde que el despertar levanta el
+  silencio (2026-08-22), si macOS re-creara el proxy del monitor ya conectado, P1-C abriría
+  ventana en CADA despertar con el monitor puesto y la regla armada. Es coherente con lo que
+  pide el usuario y pasa por la transacción completa, así que es seguro; pero conviene saber
+  si ocurre. Medirlo con la sonda del scratchpad: dormir con el monitor puesto y ver si al
+  despertar llega un `MATCH … Location=External`.
 - **La cuarta capa del re-armado, en un dock o hub**: si ahí el proxy External tarda en morir
   MÁS de los 12 s que espera el re-armado, o no muere, abriría ventana con el cable fuera.
   Entonces todo depende de que, con la interna ya encendida,
