@@ -310,6 +310,15 @@ App Store y Apple puede romperlas. Firma ad-hoc sin entitlements — si algún d
 atajo global hará falta permiso de Accesibilidad, que una identidad ad-hoc nueva revoca en cada
 compilación.
 
+**`CGError 1014` NO existe en el enum público.** Verificado en el header del SDK
+(`CGError.h`): los valores documentados van de 1000 a 1011, y 1014 no está entre ellos — por
+eso `pc_cgerror_name` lo devuelve como `unknown` y el registro lo escribe como número pelado.
+Es un código propio de la API privada (`CGSConfigureDisplayEnabled`) o del WindowServer. Lo
+que SÍ está medido es cuándo aparece, y es muy consistente: al intentar encender un display
+mientras WindowServer está en plena reconfiguración. Encaja con «no puedo completar esta
+transacción ahora» —reintentar más tarde suele funcionar— pero eso es inferencia por el
+contexto, no una definición de Apple. No lo documentes como si lo fuera.
+
 **El `CGError 1014` del vigía, con su alcance real.** Con la interna apagada, desenchufar el
 externo hace que el vigía intente el re-encendido en la ventana zombi, y en el registro de
 este equipo (05→21 ago 2026, ahora en `PantallaOff.log.1`) ése **agotó los tres intentos con
